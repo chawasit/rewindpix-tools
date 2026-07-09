@@ -44,3 +44,24 @@ over `file://` or `http://` instead (no HTTPS = no block). Pick one:
   but the reply can't be read, so **verify the result on the camera's screen**.
 - The camera is **single-client** and wedges under rapid-fire requests — one action at a time.
 - Full protocol reference: **[RewindPix / NT96565 WiFi API notes](https://gist.github.com/chawasit/6b3912419dd7600c90361d8231757d79)**.
+
+## The camera as a host (HFS)
+
+With an SD card inserted, **`http://192.168.1.254/`** is the camera's **HFS file browser** (`hfs/1.00.000`):
+it **lists the SD**, **serves any file by path** (that's how a tool runs — e.g. `/index.html`, confirmed),
+shows per-file **Remove** links (`?del=1`), and renders **file-upload forms**. A tool copied to the SD root
+is served at `http://192.168.1.254/<file>.html` — **same origin** as the camera API, so `fetch` has no CORS
+or mixed-content limits and can read responses.
+
+**Deploying a tool onto the camera:**
+- **USB (reliable):** mount the SD on a PC, copy the tool's files to the card **root**, safely eject, then
+  **power-cycle the camera** (it re-mounts + re-indexes the card), and open the URL over the camera's WiFi.
+- **HFS upload form (does NOT work here):** the root page shows "Upload files" forms, but in testing the
+  multipart POST returned `200` **without storing the file** (both `.txt` and `.html`, both forms) — it
+  appears to be a firmware stub. Use USB.
+- **Gotcha:** right after a USB session the camera shows an empty file list / free-space error until it's
+  power-cycled; that's expected, not data loss.
+
+## License
+
+**WTFPL** — see [LICENSE](LICENSE). Do what the fuck you want to.

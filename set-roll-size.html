@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set Roll Size — RewindPix Tools</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center;
+    background: #0d0f12; color: #e6e8eb;
+    font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    padding: 24px;
+  }
+  .card { width: 100%; max-width: 520px; }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; }
+  .sub { color: #9aa4af; margin: 0 0 20px; font-size: .92rem; }
+  a { color: #6ea8fe; }
+  label { display: block; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #9aa4af; margin: 16px 0 6px; }
+  input {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid #2a2f37;
+    background: #14181d; color: #e6e8eb; font-size: 1rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  input:focus { outline: none; border-color: #6ea8fe; }
+  .quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .quick button { flex: 1 0 auto; }
+  button {
+    cursor: pointer; border: 1px solid #2a2f37; background: #1b2027; color: #e6e8eb;
+    padding: 10px 14px; border-radius: 10px; font-size: .95rem;
+  }
+  button:hover { border-color: #3a424d; background: #222833; }
+  button.primary { background: #2f6feb; border-color: #2f6feb; color: #fff; width: 100%; margin-top: 18px; padding: 13px; font-weight: 600; font-size: 1rem; }
+  button.primary:hover { background: #4680f0; }
+  .status { margin-top: 16px; padding: 12px 14px; border-radius: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; min-height: 1.2em; display: none; white-space: pre-wrap; }
+  .status.show { display: block; }
+  .status.ok { background: #10240f; border: 1px solid #2e6b28; color: #9ff196; }
+  .status.err { background: #2a0f0f; border: 1px solid #7a2c2c; color: #ffb4b4; }
+  .status.wait { background: #14181d; border: 1px solid #2a2f37; color: #9aa4af; }
+  details { margin-top: 22px; border-top: 1px solid #1e232a; padding-top: 14px; }
+  summary { cursor: pointer; color: #9aa4af; font-size: .9rem; }
+  details p, details li { color: #9aa4af; font-size: .86rem; }
+  code { background: #14181d; border: 1px solid #2a2f37; border-radius: 5px; padding: 1px 5px; font-size: .85em; }
+  .warn { margin-top: 14px; background: #241d0c; border: 1px solid #6b5a20; color: #f1de96; padding: 10px 12px; border-radius: 10px; font-size: .84rem; }
+  .back { display: inline-block; margin-bottom: 14px; color: #9aa4af; text-decoration: none; font-size: .88rem; }
+  .steps { margin: 4px 0 20px; padding: 14px 16px 14px 36px; background: #12161b; border: 1px solid #1e232a; border-radius: 12px; }
+  .steps li { margin: 5px 0; color: #cfd4da; font-size: .92rem; }
+  .steps li b { color: #e6e8eb; }
+  .caution { margin-top: 18px; color: #f1b0b0; font-size: .82rem; border-top: 1px solid #1e232a; padding-top: 12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <a class="back" href="./">← RewindPix Tools</a>
+  <h1>Set roll size</h1>
+  <p class="sub">Sets the camera's frame budget (max photos) via <code>cmd=8004</code>. Any non-negative number; <code>0</code> clears the roll.</p>
+
+  <ol class="steps">
+    <li>Open this page (you're here).</li>
+    <li><b>Connect</b> your phone / PC to the camera's WiFi.</li>
+    <li>Enter a number and <b>click "Set roll size".</b></li>
+    <li>Wait for <b>✓ success</b> (green) or an <b>error</b> (red) below.</li>
+    <li><b>Disconnect</b> from the camera WiFi and use the camera as normal.</li>
+  </ol>
+
+  <label for="base">Camera base URL</label>
+  <input id="base" value="http://192.168.1.254" spellcheck="false" autocomplete="off">
+
+  <label for="n">Max photos</label>
+  <input id="n" type="number" min="0" step="1" value="99" inputmode="numeric">
+  <div class="quick">
+    <button data-n="0">0 (clear)</button>
+    <button data-n="24">24</button>
+    <button data-n="36">36</button>
+    <button data-n="99">99</button>
+  </div>
+
+  <button id="go" class="primary">Set roll size</button>
+  <div id="status" class="status"></div>
+
+  <div class="warn" id="mixedWarn" style="display:none">
+    This page is loaded over <b>HTTPS</b>, but the camera speaks plain <b>HTTP</b>. Your browser will block the
+    request. Open this tool from a <b>local file</b> or over <code>http://</code>, or allow “Insecure content”
+    for this site in your browser’s site settings.
+  </div>
+
+  <details>
+    <summary>How it works &amp; troubleshooting</summary>
+    <p>Sends <code>GET &lt;base&gt;/?custom=1&amp;cmd=8004&amp;par=&lt;N&gt;</code> to the camera. It's fire-and-forget
+       (the camera doesn't send CORS headers, so the reply can't be read) — <b>verify the new count on the camera's screen</b>.</p>
+    <ul>
+      <li>Join your device to the camera's WiFi first; the camera must be reachable at the base URL.</li>
+      <li>An SD card must be inserted for photos; the frame budget still sets without one.</li>
+      <li><code>99</code> is the highest value confirmed to be accepted; larger values are untested.</li>
+      <li>Single-client device — don't hammer it; one action at a time.</li>
+    </ul>
+    <p>API details: see the <a href="https://gist.github.com/chawasit/6b3912419dd7600c90361d8231757d79">RewindPix camera API notes</a>.</p>
+  </details>
+  <p class="caution">⚠️ Unofficial, reverse-engineered tool — not affiliated with or endorsed by the vendor. Use at your own risk.</p>
+</div>
+
+<script>
+(function () {
+  var baseEl = document.getElementById('base');
+  var nEl = document.getElementById('n');
+  var statusEl = document.getElementById('status');
+  var goEl = document.getElementById('go');
+
+  if (location.protocol === 'https:') {
+    document.getElementById('mixedWarn').style.display = 'block';
+  }
+
+  function setStatus(msg, kind) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status show ' + (kind || 'wait');
+  }
+
+  function currentBase() {
+    return (baseEl.value || 'http://192.168.1.254').trim().replace(/\/+$/, '');
+  }
+
+  async function send(n) {
+    if (!Number.isInteger(n) || n < 0) { setStatus('Enter a whole number ≥ 0.', 'err'); return; }
+    var base = currentBase();
+    var url = base + '/?custom=1&cmd=8004&par=' + n;
+    setStatus('Sending → ' + url, 'wait');
+    goEl.disabled = true;
+    try {
+      await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+      setStatus('Sent: max photos → ' + n + (n === 0 ? '  (roll cleared)' : '') + '\nVerify the count on the camera screen.', 'ok');
+    } catch (e) {
+      setStatus('Could not reach the camera at ' + base + '.\n' +
+        '• Are you on the camera\'s WiFi?\n' +
+        '• If this page is on HTTPS (e.g. GitHub Pages), the browser blocks HTTP camera requests — open it locally / over http, or allow insecure content.', 'err');
+    } finally {
+      goEl.disabled = false;
+    }
+  }
+
+  goEl.addEventListener('click', function () { send(parseInt(nEl.value, 10)); });
+  nEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(parseInt(nEl.value, 10)); });
+  Array.prototype.forEach.call(document.querySelectorAll('.quick button'), function (b) {
+    b.addEventListener('click', function () { nEl.value = b.dataset.n; send(parseInt(b.dataset.n, 10)); });
+  });
+})();
+</script>
+</body>
+</html>

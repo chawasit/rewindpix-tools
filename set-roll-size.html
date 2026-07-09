@@ -47,6 +47,8 @@
   .steps li { margin: 5px 0; color: #cfd4da; font-size: .92rem; }
   .steps li b { color: #e6e8eb; }
   .caution { margin-top: 18px; color: #f1b0b0; font-size: .82rem; border-top: 1px solid #1e232a; padding-top: 12px; }
+  .dl { display: inline-block; margin-top: 14px; padding: 10px 15px; border: 1px solid #2a2f37; border-radius: 10px; color: #e6e8eb; text-decoration: none; font-size: .9rem; background: #14181d; }
+  .dl:hover { border-color: #3a424d; background: #1b2027; }
 </style>
 </head>
 <body>
@@ -79,9 +81,11 @@
   <div id="status" class="status"></div>
 
   <div class="warn" id="mixedWarn" style="display:none">
-    This page is loaded over <b>HTTPS</b>, but the camera speaks plain <b>HTTP</b>. Your browser will block the
-    request. Open this tool from a <b>local file</b> or over <code>http://</code>, or allow “Insecure content”
-    for this site in your browser’s site settings.
+    <b>This page is on HTTPS; the camera is plain HTTP</b> — the browser blocks the request. Two ways to fix it:
+    <ol style="margin:8px 0 0; padding-left:20px">
+      <li><b>Allow it here (Chrome/Edge):</b> click the site-info icon left of the address bar → <b>Site settings</b> → <b>Insecure content</b> → <b>Allow</b> → reload this page.</li>
+      <li><b>Or run it locally:</b> <a href="set-roll-size.html" download="set-roll-size.html">download this tool</a> and open the file, or serve the folder over <code>http://</code> (e.g. <code>python -m http.server</code>).</li>
+    </ol>
   </div>
 
   <details>
@@ -96,6 +100,7 @@
     </ul>
     <p>API details: see the <a href="https://gist.github.com/chawasit/6b3912419dd7600c90361d8231757d79">RewindPix camera API notes</a>.</p>
   </details>
+  <p><a class="dl" href="set-roll-size.html" download="set-roll-size.html">⤓ Download this tool — run it locally (opens over file:// or http://, no HTTPS block)</a></p>
   <p class="caution">⚠️ Unofficial, reverse-engineered tool — not affiliated with or endorsed by the vendor. Use at your own risk.</p>
 </div>
 

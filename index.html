@@ -39,9 +39,11 @@
   </a>
 
   <div class="warn">
-    <b>Heads up:</b> the camera speaks plain <b>HTTP</b> at <code>192.168.1.254</code>. On an <b>HTTPS</b> page
-    (like this one on GitHub Pages) browsers block requests to it. To actually use a tool: open it from a
-    <b>local file</b> or over <code>http://</code>, or allow “Insecure content” for this site in your browser.
+    <b>Run these locally.</b> The camera is plain <b>HTTP</b> (<code>192.168.1.254</code>), so a tool must open over
+    <code>file://</code> or <code>http://</code> — <b>not HTTPS</b> (browsers block HTTPS→HTTP requests, which is
+    why this isn't on GitHub Pages). Download a tool and open the file, serve the folder over http
+    (<code>python -m http.server</code>), or even serve it from the camera's own SD card at
+    <code>http://192.168.1.254/…</code> (same-origin — no block).
   </div>
 
   <div class="foot">

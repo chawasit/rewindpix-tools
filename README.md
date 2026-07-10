@@ -1,7 +1,10 @@
 # RewindPix Tools
 
-Small, dependency-free **browser app + tools** for the RewindPix camera
-(**Novatek NT96565**, model PS135) over its local WiFi HTTP API.
+Small, dependency-free **browser app + tools** for the **RewindPix** film-emulation camera
+(**Novatek NT96565**, model PS135) — a community, open-source **alternative to the official RewindPix
+app** that talks to the camera over its local WiFi HTTP API. From any phone or computer (no app install):
+browse and **download your photos**, **develop the film look** in-browser with the camera's LUTs, and
+**unlock the film roll size** past the stock 36-frame limit.
 
 Everything here is static HTML + vanilla JS (WebGL for develop), meant to be **run locally or served by
 the camera itself over plain HTTP** (not HTTPS — see below). Installable as a standalone app via **Add to
@@ -18,6 +21,19 @@ cellular; root-level installs can't self-update since the camera drops root uplo
 > ⚠️ **Unofficial — use at your own risk.** These are community, reverse-engineered tools, **not**
 > affiliated with or endorsed by the RewindPix vendor. They talk to the camera's undocumented local API.
 > Some camera commands are destructive. No warranty; you are responsible for what you run against your device.
+
+## What it's for
+
+- **Unofficial alternative / replacement for the RewindPix app** — join the camera's WiFi and browse,
+  preview, and **download your photos** (one, multi-select, or the whole roll as a ZIP) from a phone or
+  laptop — no Android app required.
+- **Unlock the max film roll size** — the official app caps a roll at **36 frames**; the **Presets** tab
+  sets the camera's frame budget (*max photos*) to **any value you enter** (`cmd=8004`; quick-set
+  24/36/99, `0` clears the roll), so you can shoot **longer rolls than the app allows**.
+- **Develop the film look yourself** — apply any of the **36 built-in film HALD-CLUT LUTs** (or your own)
+  plus the 7 colour params in the browser (WebGL), and save back to the camera or your device.
+- **Edit film slots & presets** — rename the 3 film / 3 in-camera slots, tune params, save/restore
+  preset collections, and name a slot after a LUT for auto-preview.
 
 ## Tools
 
@@ -93,3 +109,8 @@ or mixed-content limits and can read responses.
 ## License
 
 **WTFPL** — see [LICENSE](LICENSE). Do what the fuck you want to.
+
+---
+_Keywords: RewindPix app alternative · RewindPix app replacement · download RewindPix photos over WiFi ·
+unlock RewindPix film roll size · remove the 36-frame roll limit · Novatek NT96565 / PS135 camera API ·
+in-browser film LUT develop · reverse-engineered RewindPix tools._

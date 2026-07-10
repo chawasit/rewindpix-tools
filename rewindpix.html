@@ -169,8 +169,8 @@ body.selecting .cell.sel::before { content: "✓"; background: #2f6feb; border-c
   <h1>RewindPix</h1>
   <div class="status-bar" id="status"></div>
   <span class="spacer"></span>
-  <span title="build version — updates on ⟳ Update" style="font-size:.7rem;color:#7b848f;font-family:ui-monospace,Menlo,monospace;margin-right:8px">v2026-07-11 03:48</span>
-  <button id="rp-update" title="Update the app from the GitHub repo (needs internet + camera WiFi)" style="margin-left:12px">⟳ Update</button>
+  <span title="build version — updates on ⟳ Update" style="font-size:.7rem;color:#7b848f;font-family:ui-monospace,Menlo,monospace;margin-right:8px">v2026-07-11 04:11</span>
+  <button id="rp-update" title="Update in 2 steps: 1) download the latest from GitHub (needs internet), 2) reconnect to the camera's WiFi and upload" style="margin-left:12px">⟳ Update</button>
 </header>
 <main id="app"></main>
 
@@ -534,24 +534,38 @@ function show(v) {
   if (window.RPNav) window.RPNav(v);
 }
 function route() { let v = (location.hash.replace(/^#/, "").split("?")[0]) || "gallery"; if (!VIEWS.includes(v)) v = "gallery"; show(v); }
+let rpPending = null;   // downloaded copy held in memory across a WiFi switch (the page isn't reloaded)
 async function rpUpdate() {
   const st = document.getElementById("status");
-  const RAW = "https://raw.githubusercontent.com/chawasit/rewindpix-tools/main/rewindpix.html";
+  const btn = document.getElementById("rp-update");
   const path = decodeURIComponent(location.pathname);
   const dir = path.slice(0, path.lastIndexOf("/") + 1);
   const file = path.slice(path.lastIndexOf("/") + 1) || "rewindpix.html";
-  if (dir === "/" && location.hostname === "192.168.1.254") { st.textContent = "Update needs the app in a SUBFOLDER (e.g. /RewindPix/) — the camera drops root uploads."; return; }
-  try {
-    st.textContent = "Update: fetching latest from GitHub…";
-    const res = await fetch(RAW + "?t=" + Date.now(), { cache: "no-store" });
-    if (!res.ok) throw new Error("GitHub HTTP " + res.status);
-    const blob = await res.blob();
-    if (blob.size < 200000) throw new Error("downloaded file too small (" + blob.size + " B)");
-    st.textContent = "Update: uploading " + (blob.size / 1048576).toFixed(1) + " MB to the camera…";
-    const form = new FormData(); form.append("fileupload1", blob, file); form.append("upbtn", "Upload files");
-    await fetch(dir, { method: "POST", body: form, cache: "no-store" });
-    st.textContent = "Updated \u2713 (" + file + ") — reloading…"; setTimeout(() => location.reload(), 1200);
-  } catch (e) { st.textContent = "Update failed: " + e.message + " — need internet + the camera's WiFi at the same time."; }
+  if (location.hostname === "192.168.1.254" && dir === "/") { st.textContent = "Update needs the app in a SUBFOLDER (e.g. /RewindPix/) \u2014 the camera drops root uploads."; return; }
+  if (!rpPending) {
+    // ---- step 1: download the latest from GitHub (needs internet) ----
+    const RAW = "https://raw.githubusercontent.com/chawasit/rewindpix-tools/main/rewindpix.html";
+    try {
+      st.textContent = "Update 1/2: downloading the latest from GitHub\u2026 (needs internet)";
+      const res = await fetch(RAW + "?t=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error("GitHub HTTP " + res.status);
+      const blob = await res.blob();
+      if (blob.size < 200000) throw new Error("file too small (" + blob.size + " B)");
+      rpPending = { blob, file };
+      btn.textContent = "\u2912 Finish update";
+      st.textContent = "Downloaded " + (blob.size / 1048576).toFixed(1) + " MB \u2713 \u2014 now reconnect to the CAMERA's WiFi, then tap \u2912 Finish update.";
+    } catch (e) { st.textContent = "Download failed: " + e.message + " \u2014 get on the internet first (cellular / home WiFi), then tap \u21bb Update."; }
+  } else {
+    // ---- step 2: upload the downloaded copy to the camera (needs the camera's WiFi) ----
+    try {
+      st.textContent = "Update 2/2: uploading " + (rpPending.blob.size / 1048576).toFixed(1) + " MB to the camera\u2026";
+      const form = new FormData(); form.append("fileupload1", rpPending.blob, rpPending.file); form.append("upbtn", "Upload files");
+      await fetch(dir, { method: "POST", body: form, cache: "no-store" });
+      st.textContent = "Updated \u2713 (" + rpPending.file + ") \u2014 reloading\u2026";
+      rpPending = null;
+      setTimeout(() => location.reload(), 1200);
+    } catch (e) { st.textContent = "Upload failed: " + e.message + " \u2014 make sure you're back on the CAMERA's WiFi, then tap \u2912 Finish update again."; }
+  }
 }
 document.getElementById("rp-update").onclick = rpUpdate;
 addEventListener("hashchange", route); route();

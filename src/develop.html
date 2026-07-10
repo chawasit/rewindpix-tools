@@ -90,6 +90,7 @@
       const img = await RPDev.load(src);
       photo = img; ensureEngine(); engine.setPhoto(img); preview();
       $("export").disabled=false; $("savecam").disabled=false; $("photoName").textContent = name||""; msg(img.naturalWidth+"×"+img.naturalHeight+" loaded.","ok");
+      try{ await lutReadyP; }catch(e){} autoLut(name);
     }catch(e){ msg("Couldn't load photo: "+e.message,"err"); }
     finally{ busy(false); }
   }
@@ -101,7 +102,13 @@
   function addLut(name, src){ if(lutSrc[name]!==undefined) return; lutSrc[name]=src; const o=document.createElement("option"); o.value=name; o.textContent=name; $("lut").appendChild(o); }
   Object.keys(window.RP_LUTS||{}).sort().forEach(n => addLut(n, window.RP_LUTS[n]));
   RPDev.customLuts.list().forEach(l => addLut(l.name, l.data));    // your uploaded LUTs
-  fetch("luts/luts.json").then(r=>r.json()).then(d=>{ d.luts.forEach(l => addLut(l.name, "luts/"+l.file)); }).catch(()=>{});
+  const lutReadyP = fetch("luts/luts.json").then(r=>r.json()).then(d=>{ d.luts.forEach(l => addLut(l.name, "luts/"+l.file)); }).catch(()=>{});
+  // auto-select the LUT whose name is embedded in a camera filename (DCIM<date><NAME>_<seq>) — matches the gallery's auto-preview
+  function autoLut(fname){
+    const m=(fname||"").match(/^DCIM\d{8}(.+?)_\d+\.[^.]+$/i); if(!m) return;
+    const key=m[1].toUpperCase();
+    if(lutSrc[key]!==undefined && $("lut").value!==key){ $("lut").value=key; $("lut").dispatchEvent(new Event("change")); }
+  }
   $("lut").onchange = async () => {
     const name=$("lut").value;
     if(!name){ lutImg=null; if(engine){ engine.setLut(null); preview(); } return; }

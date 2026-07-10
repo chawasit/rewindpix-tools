@@ -52,30 +52,44 @@ cellular; root-level installs can't self-update since the camera drops root uplo
 
 ## How to use
 
-1. Open the tool page.
-2. **Connect** your phone / PC to the camera's WiFi.
-3. Enter a value and click the action button.
-4. Watch for **success** (green) or **error** (red).
-5. **Disconnect** from the camera WiFi and use the camera as normal.
+*The everyday way — you just want to use your camera. The whole app is one file, `rewindpix.html`.*
 
-**Local development:** `python dev-server.py` serves the repo (the app at `/src/index.html`, the single
-file at `/rewindpix.html`) **and** proxies the camera so it runs same-origin (join the camera's WiFi first);
-`python dev-server.py --mock` runs it with canned data and
-placeholder photos (no camera needed). In production the camera serves the files itself — no server.
+1. **Put the app on your camera.** Turn the camera off, take out the SD card, and plug it into your
+   computer. Make a folder called **`RewindPix`** on the card and copy **`rewindpix.html`** into it (so
+   it's at `RewindPix/rewindpix.html`). For all 36 film looks, also copy the **`luts`** folder in next to
+   it. Eject the card, put it back in the camera, and turn the camera on.
+2. **Connect your phone to the camera's WiFi.** Turn on the camera's WiFi (the same one the official
+   RewindPix app uses), then on your phone open WiFi settings and join the camera's network.
+3. **Open the app.** In your phone's browser, go to
+   **`http://192.168.1.254/RewindPix/rewindpix.html`**. *(Tip: use your browser's **Add to Home Screen**
+   so it opens like a normal app next time.)*
+4. **Browse and save your photos.** **Gallery** shows your shots — tap one to see it full-screen, then
+   **Download ⤓** to save it to your phone. Use **Select** to grab several at once, or **Download all**
+   for the whole roll.
+5. **Give a photo the film look.** Tap **Develop**, choose a film, then **Save** (back to the camera) or
+   **Export** (to your phone).
+6. **Shoot a longer roll than 36 frames.** Open **Presets → Roll size**, type how many frames you want,
+   and tap **Set roll size** (`0` clears the roll).
+7. **When you're done,** disconnect your phone from the camera's WiFi and use the camera as usual.
 
-## Running the tools (no HTTPS)
+> **Just want to try the film looks?** Download **[`rewindpix.html`](rewindpix.html)** and open it on your
+> computer — **Develop** works on its own (upload any photo). The camera features (Gallery, Save to
+> camera, Presets) need the steps above.
 
-The camera API is **cleartext HTTP** at `http://192.168.1.254`. Browsers block requests from an **HTTPS**
-page to an HTTP address ("mixed content") — so these tools are **not** hosted on GitHub Pages. Run them
-over `file://` or `http://` instead (no HTTPS = no block). Pick one:
+## For developers
 
-- **Download & open** — grab **[`rewindpix.html`](rewindpix.html)** (the single file) and open it over
-  `file://` (desktop). Develop works standalone; other camera features need the camera served same-origin — use an option below.
-- **Serve over HTTP** — from the folder run `python -m http.server 8000`, then open
-  `http://localhost:8000/src/index.html` (or `http://<computer-ip>:8000/…` from another device on the WiFi).
-- **Serve from the camera's SD card** — the camera's `hfs` server serves `A:\` over HTTP, so a `.html`
-  copied onto the card loads at `http://192.168.1.254/…` — **same origin** as the API (no mixed content,
-  no CORS; responses even readable). *Untested but promising.*
+- **Run locally:** `python dev-server.py` serves the repo (app at `/src/index.html`, single file at
+  `/rewindpix.html`) **and** proxies the camera so everything is same-origin (join the camera's WiFi
+  first). `python dev-server.py --mock` runs with canned data + placeholder photos — **no camera needed**.
+- **Or a plain static server:** `python -m http.server 8000`, then open `http://localhost:8000/src/index.html`
+  (or `http://<your-computer-ip>:8000/…` from another device on the same WiFi).
+- **No HTTPS, by design:** the camera API is cleartext `http://192.168.1.254`, and browsers block an
+  HTTPS page from calling an HTTP address ("mixed content") — so the tools run over `file://` or `http://`,
+  never HTTPS (that's also why there's no GitHub Pages site). Served from the camera's SD they're
+  **same-origin** as the API, so `fetch` has no CORS or mixed-content limits.
+- **Build the single file:** `python build.py` bundles `src/` → `rewindpix.html`.
+- **Deploy onto the camera** (USB vs HFS upload, the power-cycle re-index) is detailed in
+  [The camera as a host](#the-camera-as-a-host-hfs) below.
 
 ## Notes
 

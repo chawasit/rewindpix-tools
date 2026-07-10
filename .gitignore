@@ -15,3 +15,7 @@ src/samples/*.ARW
 src/samples/*.CR2
 src/samples/*.arw
 src/samples/*.cr2
+
+# python bytecode cache (from the mock-server unittest)
+__pycache__/
+*.pyc

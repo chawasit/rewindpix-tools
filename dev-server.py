@@ -91,6 +91,31 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         return super().do_GET()
 
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        body = self.rfile.read(length) if length else b""
+        if is_camera_request(self.path) and not MOCK:
+            try:
+                req = urllib.request.Request(CAMERA + self.path, data=body, method="POST")
+                ct_in = self.headers.get("Content-Type")
+                if ct_in:
+                    req.add_header("Content-Type", ct_in)
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    out = r.read()
+                    ct = r.headers.get("Content-Type", "text/html")
+                self.send_response(200)
+                self.send_header("Content-Type", ct)
+                self.send_header("Content-Length", str(len(out)))
+                self.end_headers()
+                self.wfile.write(out)
+            except Exception as e:
+                self.send_error(502, "camera proxy error: %s" % e)
+            return
+        self.send_response(200)          # mock / non-camera: acknowledge without storing
+        self.send_header("Content-Length", "2")
+        self.end_headers()
+        self.wfile.write(b"ok")
+
     def log_message(self, *a):
         pass
 

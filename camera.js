@@ -73,19 +73,24 @@
   // ---- writes ----
   RP.setMaxPhotos = (n) => RP.cmd(8004, { par: n });
 
-  /* Write a developed JPEG back to the camera under DCIM/Developed_Photos via the HFS upload form.
-   * NOTE: some firmware's HFS upload is a stub (200 but no write), so we trust only a readback:
-   * returns { ok } where ok means the file is actually retrievable afterward. */
-  RP.uploadDeveloped = (name, blob) => enqueue(async () => {
+  /* Write a developed JPEG back to the camera under DCIM/Developed_Photos, via the camera's HFS
+   * multipart form (field `fileupload1`, file part FIRST — matches the on-device form; the folder
+   * auto-creates). Verified live: the file lands with the correct size in the cmd=3015 catalog.
+   * A just-uploaded file's HTTP GET serves 0 bytes until the camera re-indexes (power-cycle), so we
+   * verify via the CATALOG, never an HTTP readback. Root-level uploads are dropped — only DCIM persists. */
+  RP.uploadDeveloped = async (name, blob) => {
     const dir = "DCIM/Developed_Photos";
-    const form = new FormData();
-    form.append("fileupload", blob, name);   // field name observed on this camera's upload form
-    try { await fetch(base + "/" + dir + "/", { method: "POST", body: form, cache: "no-store" }); } catch (e) { /* readback below is the real test */ }
+    await enqueue(async () => {
+      const form = new FormData();
+      form.append("fileupload1", blob, name);   // file part must come first
+      form.append("upbtn", "Upload files");
+      try { await fetch(base + "/" + dir + "/", { method: "POST", body: form, cache: "no-store" }); } catch (e) { /* catalog check is the real test */ }
+    });
     try {
-      const chk = await fetch(base + "/" + dir + "/" + name, { cache: "no-store" });
-      return { ok: chk.ok && (await chk.blob()).size > 0, url: dir + "/" + name };
+      const hit = (await RP.listFiles()).find((f) => f.folder === "Developed_Photos" && f.name === name);
+      return { ok: !!hit && hit.size > 0, url: dir + "/" + name, size: hit ? hit.size : 0 };
     } catch (e) { return { ok: false, url: dir + "/" + name }; }
-  });
+  };
 
   // ---- slots (for the preset editor, phase 3) ----
   RP.PARAM_FIELDS = ["LUM", "CONTRAST", "RGAIN", "GGAIN", "BGAIN", "HUE", "SAT"];

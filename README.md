@@ -16,7 +16,7 @@ Home Screen** (manifest + icons). The repo is source only; there's no hosted sit
 | Tool | What it does |
 |------|--------------|
 | **[Gallery + Sync](index.html)** — `index.html` | The app home. Connect to the camera, browse photos by folder, see what's new since last sync, download shots individually, **download the whole roll as one ZIP** (fetched serialized, packaged in-browser), or send a photo to **Develop**. Serialized single-client client; skips the `._FILM` duplicate. |
-| [Develop](develop.html) | Apply any of the **36 bundled film HALD-CLUT LUTs** + 7 params (luminance, contrast, RGB gains, hue, saturation) to a photo in-browser (WebGL), preview live, and export a full-resolution JPEG. Load a photo by **picking one from the camera**, from the gallery (`?photo=`), or a file upload. **Save to camera** writes the result to `DCIM/Developed_Photos` — best-effort: if this firmware's HTTP upload is read-only (see below) it verifies the readback and falls back to a device download. |
+| [Develop](develop.html) | Apply any of the **36 bundled film HALD-CLUT LUTs** + 7 params (luminance, contrast, RGB gains, hue, saturation) to a photo in-browser (WebGL), preview live, and export a full-resolution JPEG. Load a photo by **picking one from the camera**, from the gallery (`?photo=`), or a file upload. **Save to camera** writes the result to `DCIM/Developed_Photos` (folder auto-created; verified live via the `cmd=3015` catalog); the camera re-serves it over WiFi only after a re-index / power-cycle, and it falls back to a device download if the write can't be confirmed. |
 | [Presets](presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (params only, with an override / keep-baked toggle), apply them to the camera, and save / import / export a preset collection. |
 | [Set roll size](set-roll-size.html) | Sets the frame budget (max photos) to any number (`cmd=8004`). Default 99; `0` clears the roll. |
 
@@ -67,9 +67,11 @@ or mixed-content limits and can read responses.
 **Deploying a tool onto the camera:**
 - **USB (reliable):** mount the SD on a PC, copy the tool's files to the card **root**, safely eject, then
   **power-cycle the camera** (it re-mounts + re-indexes the card), and open the URL over the camera's WiFi.
-- **HFS upload form (does NOT work here):** the root page shows "Upload files" forms, but in testing the
-  multipart POST returned `200` **without storing the file** (both `.txt` and `.html`, both forms) — it
-  appears to be a firmware stub. Use USB.
+- **HFS upload — works into `DCIM/` (corrected 2026-07-09):** a multipart POST (field `fileupload1`, file
+  part first) to a `/DCIM/…` path **persists** — the file lands with the right size in the `cmd=3015`
+  catalog and any missing subfolder (e.g. `Developed_Photos`) auto-creates. Two caveats: **root uploads are
+  dropped** (`200` but no write), and a just-uploaded file's **HTTP GET serves 0 bytes until the camera
+  re-indexes** (power-cycle) — so confirm a write via the catalog, never a readback. `?del=1` deletes (confirmed).
 - **Gotcha:** right after a USB session the camera shows an empty file list / free-space error until it's
   power-cycled; that's expected, not data loss.
 

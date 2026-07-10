@@ -53,7 +53,7 @@
       <button id="reset" style="margin-top:14px">Reset params</button>
     </div>
   </div>
-  <p class="caution">Unofficial · reverse-engineered · use at your own risk. Develop runs in your browser (WebGL). “Save to camera” uploads the result to <code>DCIM/Developed_Photos</code>, and falls back to a device download if the camera's HTTP upload is read-only.</p>
+  <p class="caution">Unofficial · reverse-engineered · use at your own risk. Develop runs in your browser (WebGL). “Save to camera” writes the result to <code>DCIM/Developed_Photos</code> on the SD (verified via the file catalog); the camera re-serves it over WiFi only after a re-index / power-cycle. Falls back to a device download if the write can't be confirmed.</p>
 </main>
 <script src="camera.js"></script>
 <script src="develop.js"></script>
@@ -139,8 +139,8 @@
     try{
       engine.render(params,w,h); const blob=await engine.toBlob("image/jpeg",0.92); preview();
       const res=await RP.uploadDeveloped(name, blob);
-      if(res.ok){ msg("Saved to camera → "+res.url+" ("+(blob.size/1048576).toFixed(1)+" MB). Verify on the camera.","ok"); }
-      else{ downloadBlob(blob,name); msg("Camera upload didn't persist (this firmware's HTTP upload looks read-only) — saved "+name+" to your device instead; copy it into DCIM/Developed_Photos over USB.","err"); }
+      if(res.ok){ msg("Saved to camera → "+res.url+" ("+(res.size/1024).toFixed(0)+" KB on the SD). It re-serves over WiFi after a camera re-index / power-cycle.","ok"); }
+      else{ downloadBlob(blob,name); msg("Couldn't confirm the camera write — saved "+name+" to your device instead; copy it into DCIM/Developed_Photos over USB.","err"); }
     }catch(e){ msg("Save to camera failed: "+e.message,"err"); }
     finally{ $("savecam").disabled=false; }
   }

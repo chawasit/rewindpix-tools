@@ -35,6 +35,31 @@
     finally { btn.disabled = false; setTimeout(() => (btn.textContent = prev), 1500); }
   }
 
+  async function downloadAll() {
+    const btn = $("downloadall"), prev = btn.textContent; btn.disabled = true;
+    const files = RP.syncableFiles(lastFiles);
+    if (!files.length) { msg("Nothing to download.", "err"); btn.disabled = false; return; }
+    try {
+      const entries = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        btn.textContent = "ZIP " + (i + 1) + "/" + files.length;
+        msg("Zipping " + (i + 1) + "/" + files.length + ": " + f.name + " …", "wait");
+        const blob = await RP.downloadBlob(f.fpath);   // serialized through the single-client queue
+        entries.push({ name: f.folder + "/" + f.name, bytes: new Uint8Array(await blob.arrayBuffer()) });
+      }
+      msg("Packaging " + entries.length + " photos…", "wait");
+      const zip = RPZip.build(entries);
+      const url = URL.createObjectURL(zip);
+      const a = document.createElement("a"); a.href = url;
+      a.download = "rewindpix-" + new Date().toISOString().slice(0, 10) + ".zip";
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 8000);
+      RP.markSeen(files.map((f) => f.fpath)); renderGallery(lastFiles);
+      msg("Downloaded " + entries.length + " photos as a ZIP (" + fmtBytes(zip.size) + ").", "ok");
+    } catch (e) { msg("ZIP download failed: " + e.message + " — try saving photos individually.", "err"); }
+    finally { btn.disabled = false; btn.textContent = prev; }
+  }
+
   function renderGallery(files) {
     const seen = RP.seen();
     const syncable = RP.syncableFiles(files);
@@ -100,6 +125,7 @@
   $("reconnect").onclick = connect;
   $("marksynced").onclick = () => { RP.markSeen(RP.syncableFiles(lastFiles).map((f) => f.fpath)); renderGallery(lastFiles); msg("Marked all current photos as synced.", "ok"); };
   $("clearseen").onclick = () => { RP.resetSeen(); renderGallery(lastFiles); msg("Sync memory reset — all photos show as NEW again.", "ok"); };
+  $("downloadall").onclick = downloadAll;
 
   // auto-connect + initial sync on load
   sync();

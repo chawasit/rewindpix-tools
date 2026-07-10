@@ -43,10 +43,6 @@
     <button id="savecam" disabled>Save to camera ⤒</button>
     <span id="photoName" style="color:#9aa4af;font-size:.85rem"></span>
   </div>
-  <div id="picker" style="display:none">
-    <div class="row"><b style="flex:1">Pick a photo from the camera</b><button id="pickclose">Close</button></div>
-    <div id="pickgrid" class="grid"></div>
-  </div>
   <div class="msg" id="msg"></div>
   <div class="dev-wrap">
     <div class="pv"><div id="preview"><div style="padding:40px;color:#7b848f;text-align:center">Choose a photo to develop.</div></div><div id="busy" class="busy"><div class="spin"></div><span id="busytxt">Processing…</span></div></div>
@@ -131,28 +127,8 @@
     setTimeout(()=>URL.revokeObjectURL(url),4000);
   }
 
-  // ---- pick a photo from the camera (gentle: 2-at-a-time lazy thumbs, single-client) ----
-  let pActive=0; const pQueue=[];
-  function pPump(){ while(pActive<2 && pQueue.length){ const img=pQueue.shift(); pActive++; img.src=img.dataset.src; const done=()=>{pActive--;pPump();}; img.onload=done; img.onerror=done; } }
-  const pIO=new IntersectionObserver(es=>{ for(const e of es) if(e.isIntersecting){ pIO.unobserve(e.target); pQueue.push(e.target); pPump(); } }, {rootMargin:"200px"});
-  $("fromcam").onclick = async () => {
-    const box=$("picker"), grid=$("pickgrid"); box.style.display="block";
-    grid.innerHTML="<div style='color:#7b848f;padding:12px'>Listing camera photos…</div>";
-    try{
-      const files=RP.syncableFiles(await RP.listFiles()).sort((a,b)=>b.timecode-a.timecode);
-      if(!files.length){ grid.innerHTML="<div style='color:#ffb4b4;padding:12px'>No photos on the camera — is the SD card mounted?</div>"; return; }
-      grid.innerHTML="";
-      for(const f of files){
-        const cell=document.createElement("div"); cell.className="cell"; cell.style.cursor="pointer";
-        const img=document.createElement("img"); img.dataset.src=RP.urlFor(f.fpath); img.alt=f.name; img.loading="lazy";
-        const cap=document.createElement("div"); cap.className="cap"; const nm=document.createElement("span"); nm.className="name"; nm.textContent=f.name; cap.appendChild(nm);
-        cell.appendChild(img); cell.appendChild(cap);
-        cell.onclick=()=>{ box.style.display="none"; loadPhoto(RP.urlFor(f.fpath), f.name); };
-        grid.appendChild(cell); pIO.observe(img);
-      }
-    }catch(e){ grid.innerHTML="<div style='color:#ffb4b4;padding:12px'>List failed: "+e.message+"</div>"; }
-  };
-  $("pickclose").onclick = () => { $("picker").style.display="none"; };
+  // "From camera" opens the Gallery (folder view + cached thumbnails); pick a photo there → viewer → Develop.
+  $("fromcam").onclick = () => { if (window.RP_SPA) location.hash = "#gallery"; else location.href = "index.html"; };
 
   async function saveToCamera(){
     if(!photo) return; const [w,h]=engine.size;

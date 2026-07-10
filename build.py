@@ -9,12 +9,13 @@ CSS + icons + a curated LUT subset (data URIs) are inlined. The full 36-LUT set 
 
 Usage:  python build.py            -> writes rewindpix.html
 """
-import base64, json, os, re
+import base64, datetime, json, os, re
 from pathlib import Path
 
 D = Path(__file__).parent
 SRC = D / "src"                   # multi-file app source lives here
 OUT = D / "rewindpix.html"
+VERSION = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")   # build stamp shown next to ⟳ Update
 
 
 def read(name):
@@ -112,6 +113,7 @@ doc = f"""<!doctype html>
   <h1>RewindPix</h1>
   <div class="status-bar" id="status"></div>
   <span class="spacer"></span>
+  <span title="build version — updates on ⟳ Update" style="font-size:.7rem;color:#7b848f;font-family:ui-monospace,Menlo,monospace;margin-right:8px">v{VERSION}</span>
   <button id="rp-update" title="Update the app from the GitHub repo (needs internet + camera WiFi)" style="margin-left:12px">⟳ Update</button>
 </header>
 <main id="app"></main>

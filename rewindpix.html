@@ -169,7 +169,7 @@ body.selecting .cell.sel::before { content: "✓"; background: #2f6feb; border-c
   <h1>RewindPix</h1>
   <div class="status-bar" id="status"></div>
   <span class="spacer"></span>
-  <span title="build version — updates on ⟳ Update" style="font-size:.7rem;color:#7b848f;font-family:ui-monospace,Menlo,monospace;margin-right:8px">v2026-07-11 04:11</span>
+  <span title="build version — updates on ⟳ Update" style="font-size:.7rem;color:#7b848f;font-family:ui-monospace,Menlo,monospace;margin-right:8px">v2026-07-11 04:16</span>
   <button id="rp-update" title="Update in 2 steps: 1) download the latest from GitHub (needs internet), 2) reconnect to the camera's WiFi and upload" style="margin-left:12px">⟳ Update</button>
 </header>
 <main id="app"></main>
@@ -554,7 +554,7 @@ async function rpUpdate() {
       rpPending = { blob, file };
       btn.textContent = "\u2912 Finish update";
       st.textContent = "Downloaded " + (blob.size / 1048576).toFixed(1) + " MB \u2713 \u2014 now reconnect to the CAMERA's WiFi, then tap \u2912 Finish update.";
-    } catch (e) { st.textContent = "Download failed: " + e.message + " \u2014 get on the internet first (cellular / home WiFi), then tap \u21bb Update."; }
+    } catch (e) { st.textContent = "Download failed: " + e.message + ". Connect to the internet first \u2014 mobile data / 5G or another WiFi (the camera's own WiFi has none) \u2014 then tap \u21bb Update."; }
   } else {
     // ---- step 2: upload the downloaded copy to the camera (needs the camera's WiFi) ----
     try {

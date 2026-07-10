@@ -170,7 +170,7 @@ async function rpUpdate() {{
       rpPending = {{ blob, file }};
       btn.textContent = "\\u2912 Finish update";
       st.textContent = "Downloaded " + (blob.size / 1048576).toFixed(1) + " MB \\u2713 \\u2014 now reconnect to the CAMERA's WiFi, then tap \\u2912 Finish update.";
-    }} catch (e) {{ st.textContent = "Download failed: " + e.message + " \\u2014 get on the internet first (cellular / home WiFi), then tap \\u21bb Update."; }}
+    }} catch (e) {{ st.textContent = "Download failed: " + e.message + ". Connect to the internet first \\u2014 mobile data / 5G or another WiFi (the camera's own WiFi has none) \\u2014 then tap \\u21bb Update."; }}
   }} else {{
     // ---- step 2: upload the downloaded copy to the camera (needs the camera's WiFi) ----
     try {{

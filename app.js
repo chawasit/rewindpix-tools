@@ -88,7 +88,7 @@
         const dl = document.createElement("button"); dl.className = "dl-btn"; dl.textContent = "⤓"; dl.title = "Download";
         dl.style.cssText = "padding:2px 8px;font-size:.8rem"; dl.onclick = () => download(f.fpath, f.name, dl);
         const dev = document.createElement("a"); dev.className = "dl-btn"; dev.textContent = "Develop";
-        dev.style.cssText = "padding:2px 8px;font-size:.8rem;text-decoration:none"; dev.href = "develop.html?photo=" + encodeURIComponent(f.fpath);
+        dev.style.cssText = "padding:2px 8px;font-size:.8rem;text-decoration:none"; dev.href = window.RP_SPA ? "#develop" : ("develop.html?photo=" + encodeURIComponent(f.fpath));
         cap.appendChild(nm); cap.appendChild(dev); cap.appendChild(dl); cell.appendChild(cap); grid.appendChild(cell);
       }
       galleryEl.appendChild(grid);

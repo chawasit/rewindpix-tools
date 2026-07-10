@@ -90,14 +90,15 @@
 
   $("file").onchange = e => { const f=e.target.files[0]; if(!f) return; loadPhoto(URL.createObjectURL(f), f.name); };
 
-  // LUT dropdown from bundled luts.json
-  fetch("luts/luts.json").then(r=>r.json()).then(d=>{
-    d.luts.forEach(l => { const o=document.createElement("option"); o.value=l.file; o.textContent=l.name; $("lut").appendChild(o); });
-  }).catch(()=>{});
+  // LUT dropdown: inlined subset (window.RP_LUTS, single-file build) merged with the bundled luts/ folder
+  const lutSrc = {};                       // option name -> resolvable src (data URI or "luts/<file>")
+  function addLut(name, src){ if(lutSrc[name]!==undefined) return; lutSrc[name]=src; const o=document.createElement("option"); o.value=name; o.textContent=name; $("lut").appendChild(o); }
+  Object.keys(window.RP_LUTS||{}).sort().forEach(n => addLut(n, window.RP_LUTS[n]));
+  fetch("luts/luts.json").then(r=>r.json()).then(d=>{ d.luts.forEach(l => addLut(l.name, "luts/"+l.file)); }).catch(()=>{});
   $("lut").onchange = async () => {
-    const f=$("lut").value;
-    if(!f){ lutImg=null; if(engine){ engine.setLut(null); preview(); } return; }
-    try{ lutImg = await RPDev.load("luts/"+f); ensureEngine(); engine.setLut(lutImg); preview(); }
+    const name=$("lut").value;
+    if(!name){ lutImg=null; if(engine){ engine.setLut(null); preview(); } return; }
+    try{ lutImg = await RPDev.load(lutSrc[name]); ensureEngine(); engine.setLut(lutImg); preview(); }
     catch(e){ msg("LUT load failed: "+e.message,"err"); }
   };
 

@@ -7,6 +7,11 @@ Everything here is static HTML + vanilla JS (WebGL for develop), meant to be **r
 the camera itself over plain HTTP** (not HTTPS — see below). Installable as a standalone app via **Add to
 Home Screen** (manifest + icons). The repo is source only; there's no hosted site.
 
+**One-file build:** [`rewindpix.html`](rewindpix.html) is the whole app in a **single self-contained file**
+(all 4 views + CSS/JS/icons + a curated ~3.4 MB LUT subset inlined) — download it and open it, no folder
+needed. Develop works standalone (inlined LUTs + upload); with a `luts/` folder beside it (or on the camera
+SD) it loads all 36 LUTs and every camera feature. Rebuild it with `python build.py`.
+
 > ⚠️ **Unofficial — use at your own risk.** These are community, reverse-engineered tools, **not**
 > affiliated with or endorsed by the RewindPix vendor. They talk to the camera's undocumented local API.
 > Some camera commands are destructive. No warranty; you are responsible for what you run against your device.

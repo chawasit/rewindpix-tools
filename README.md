@@ -23,10 +23,16 @@ installs can't self-update since the camera drops root uploads).
 
 | Tool | What it does |
 |------|--------------|
-| **[Gallery + Sync](index.html)** — `index.html` | The app home. Connect to the camera, browse photos by folder, see what's new since last sync, download shots individually, **download the whole roll as one ZIP** (fetched serialized, packaged in-browser), or send a photo to **Develop**. Serialized single-client client; skips the `._FILM` duplicate. |
-| [Develop](develop.html) | Apply any of the **36 bundled film HALD-CLUT LUTs** + 7 params (luminance, contrast, RGB gains, hue, saturation) to a photo in-browser (WebGL), preview live, and export a full-resolution JPEG. Load a photo by **picking one from the camera**, from the gallery (`?photo=`), or a file upload. **Save to camera** writes the result to `DCIM/Developed_Photos` (folder auto-created; verified live via the `cmd=3015` catalog); the camera re-serves it over WiFi only after a re-index / power-cycle, and it falls back to a device download if the write can't be confirmed. |
-| [Presets](presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (params only, with an override / keep-baked toggle), apply them to the camera, and save / import / export a preset collection. |
-| [Set roll size](set-roll-size.html) | Sets the frame budget (max photos) to any number (`cmd=8004`). Default 99; `0` clears the roll. |
+| **[Gallery + Sync](src/index.html)** — `src/index.html` | The app home. Connect to the camera, browse photos by folder, see what's new since last sync, download shots individually, **download the whole roll as one ZIP** (fetched serialized, packaged in-browser), or send a photo to **Develop**. Serialized single-client client; skips the `._FILM` duplicate. |
+| [Develop](src/develop.html) | Apply any of the **36 bundled film HALD-CLUT LUTs** + 7 params (luminance, contrast, RGB gains, hue, saturation) to a photo in-browser (WebGL), preview live, and export a full-resolution JPEG. Load a photo by **picking one from the camera**, from the gallery (`?photo=`), or a file upload. **Save to camera** writes the result to `DCIM/Developed_Photos` (folder auto-created; verified live via the `cmd=3015` catalog); the camera re-serves it over WiFi only after a re-index / power-cycle, and it falls back to a device download if the write can't be confirmed. |
+| [Presets](src/presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (params only, with an override / keep-baked toggle), apply them to the camera, and save / import / export a preset collection. |
+| [Set roll size](src/set-roll-size.html) | Sets the frame budget (max photos) to any number (`cmd=8004`). Default 99; `0` clears the roll. |
+
+## Repo layout
+
+- **`rewindpix.html`** — the built, shippable **single file** (open it, or install it on the camera SD).
+- **`src/`** — multi-file source: the 4 pages + JS (`camera.js`, `app.js`, `zip.js`, `develop.js`, `presets-ui.js`, `roll-size.js`), `style.css`, icons, `manifest.webmanifest`, and `luts/` (36 HALD-CLUT PNGs).
+- **`build.py`** — bundles `src/` → `rewindpix.html`. **`dev-server.py`** — local static server + camera proxy (`--mock` = no camera).
 
 ## How to use
 
@@ -36,8 +42,9 @@ installs can't self-update since the camera drops root uploads).
 4. Watch for **success** (green) or **error** (red).
 5. **Disconnect** from the camera WiFi and use the camera as normal.
 
-**Local development:** `python dev-server.py` serves the app **and** proxies the camera so it runs
-same-origin (join the camera's WiFi first); `python dev-server.py --mock` runs it with canned data and
+**Local development:** `python dev-server.py` serves the repo (the app at `/src/index.html`, the single
+file at `/rewindpix.html`) **and** proxies the camera so it runs same-origin (join the camera's WiFi first);
+`python dev-server.py --mock` runs it with canned data and
 placeholder photos (no camera needed). In production the camera serves the files itself — no server.
 
 ## Running the tools (no HTTPS)
@@ -46,10 +53,10 @@ The camera API is **cleartext HTTP** at `http://192.168.1.254`. Browsers block r
 page to an HTTP address ("mixed content") — so these tools are **not** hosted on GitHub Pages. Run them
 over `file://` or `http://` instead (no HTTPS = no block). Pick one:
 
-- **Download & open** — download the repo (**Code → Download ZIP**), unzip, and open `index.html` over
-  `file://` (desktop). Camera features need the camera served same-origin — use an option below.
+- **Download & open** — grab **[`rewindpix.html`](rewindpix.html)** (the single file) and open it over
+  `file://` (desktop). Develop works standalone; other camera features need the camera served same-origin — use an option below.
 - **Serve over HTTP** — from the folder run `python -m http.server 8000`, then open
-  `http://localhost:8000/set-roll-size.html` (or `http://<computer-ip>:8000/…` from another device on the WiFi).
+  `http://localhost:8000/src/set-roll-size.html` (or `http://<computer-ip>:8000/…` from another device on the WiFi).
 - **Serve from the camera's SD card** — the camera's `hfs` server serves `A:\` over HTTP, so a `.html`
   copied onto the card loads at `http://192.168.1.254/…` — **same origin** as the API (no mixed content,
   no CORS; responses even readable). *Untested but promising.*

@@ -13,12 +13,13 @@ import base64, json, os, re
 from pathlib import Path
 
 D = Path(__file__).parent
+SRC = D / "src"                   # multi-file app source lives here
 OUT = D / "rewindpix.html"
 LUT_BUDGET = 3_600_000            # ~3.6 MB of PNG -> ~4.8 MB base64 inlined
 
 
 def read(name):
-    return (D / name).read_text(encoding="utf-8")
+    return (SRC / name).read_text(encoding="utf-8")
 
 
 def main_inner(html):
@@ -72,7 +73,7 @@ SHARED = "\n".join(read(f) for f in ("camera.js", "zip.js", "develop.js"))
 CSS = "\n".join([read("style.css"), head_style(dev), head_style(pre)])
 
 # ---- curated LUT subset (smallest first, up to the budget) ----
-luts = sorted((D / "luts").glob("*.png"), key=lambda p: p.stat().st_size)
+luts = sorted((SRC / "luts").glob("*.png"), key=lambda p: p.stat().st_size)
 picked, total, RP_LUTS = [], 0, {}
 for p in luts:
     sz = p.stat().st_size
@@ -81,7 +82,7 @@ for p in luts:
     RP_LUTS[p.stem] = "data:image/png;base64," + b64(p)
     picked.append(p.stem); total += sz
 
-ICON = b64(D / "icon-192.png")
+ICON = b64(SRC / "icon-192.png")
 MANIFEST = base64.b64encode(json.dumps({
     "name": "RewindPix", "short_name": "RewindPix", "start_url": ".", "display": "standalone",
     "background_color": "#0d0f12", "theme_color": "#12161b",

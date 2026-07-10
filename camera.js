@@ -80,6 +80,22 @@
   RP.FILM = { names: 8002, get: [8013, 8015, 8017], set: [8012, 8014, 8016] };
   RP.INCAM = { get: [8007, 8009, 8011], set: [8006, 8008, 8010] };
 
+  RP.paramStr = (p) => p.join(":");                        // [7 ints] → "a:b:c:d:e:f:g"
+  /* Push the 3 FILM slots (each {name, params:[7]}), optional frame budget. 3001-bracketed. */
+  RP.applyFilm = async (slots, budget) => {
+    await RP.cmd(3001, { par: 2 }); await RP.cmd(3001, { par: 0 });
+    if (budget != null) await RP.cmd(8004, { par: budget });
+    await RP.cmd(RP.FILM.names, { str: slots.map((s) => s.name).join(":") });
+    for (let i = 0; i < 3; i++) await RP.cmd(RP.FILM.set[i], { str: RP.paramStr(slots[i].params) });
+    await RP.cmd(3001, { par: 0 });
+  };
+  /* Push the 3 IN-CAMERA slots (params only; names are fixed firmware). `-255` reverts a slot. */
+  RP.applyIncam = async (paramsList) => {
+    await RP.cmd(3001, { par: 2 }); await RP.cmd(3001, { par: 0 });
+    for (let i = 0; i < 3; i++) await RP.cmd(RP.INCAM.set[i], { str: RP.paramStr(paramsList[i]) });
+    await RP.cmd(3001, { par: 0 });
+  };
+
   /* Sync seen-set: FPATH-keyed in localStorage. We skip `._FILM` (a byte-dup of Original_Film) so the
    * twin-dup problem is avoided without content hashing — handy since crypto.subtle isn't available on
    * the camera's plain-HTTP origin. */

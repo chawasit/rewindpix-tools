@@ -36,6 +36,14 @@ def mock_response(path):
         return xml("<Function><Cmd>1003</Cmd><Status>0</Status><Value>1229</Value></Function>")
     if "cmd=3014" in path:
         return xml("<Function><Cmd>8004</Cmd><Status>99</Status><Cmd>8005</Cmd><Status>2</Status></Function>")
+    if "cmd=8003" in path:
+        return xml("<LIST><FILM_FILTER_C1>GLVIVID</FILM_FILTER_C1><FILM_FILTER_C2>GLEXP</FILM_FILTER_C2><FILM_FILTER_C3>BWHC</FILM_FILTER_C3></LIST>")
+    _PARAMS = {"8013": (0, 75, 0, 0, 0, 0, 0), "8015": (10, 80, 0, 0, 0, 0, 20), "8017": (0, 100, 0, 0, 0, 0, -100),
+               "8007": (-255,) * 7, "8009": (-255,) * 7, "8011": (-255,) * 7}
+    for _c, _v in _PARAMS.items():
+        if ("cmd=" + _c) in path:
+            _f = ["LUM", "CONTRAST", "RGAIN", "GGAIN", "BGAIN", "HUE", "SAT"]
+            return xml("<LIST>" + "".join("<%s>%d</%s>" % (_f[i], _v[i], _f[i]) for i in range(7)) + "</LIST>")
     if "cmd=3015" in path:
         files = [
             ("Original_Film", "DCIM07102026GLVIVID_0003.JPG", 528992, 1600),

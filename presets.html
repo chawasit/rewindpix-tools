@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presets — RewindPix</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12161b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RewindPix">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .banks { display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start; }
+  @media (max-width:900px){ .banks{ grid-template-columns:1fr; } }
+  .bank h2 { font-size:1rem; margin:6px 0; }
+  .slot { background:#12161b; border:1px solid #1e232a; border-radius:10px; padding:12px; margin-bottom:12px; }
+  .slot .hd { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .slot .hd .tag { font-size:.72rem; color:#9aa4af; }
+  .slot input.name { width:130px; text-transform:uppercase; }
+  .slot .f { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:.78rem; color:#9aa4af; }
+  .slot .f label { width:74px; }
+  .slot .f input[type=range]{ flex:1; }
+  .slot .f .v { width:38px; text-align:right; color:#e6e8eb; font-family:ui-monospace,Menlo,monospace; }
+  #chart { width:100%; max-width:260px; border:1px solid #1e232a; border-radius:8px; display:block; }
+  .coll-item { display:flex; gap:8px; align-items:center; justify-content:space-between; padding:7px 10px; background:#12161b; border:1px solid #1e232a; border-radius:8px; margin:6px 0; font-size:.85rem; }
+  .coll-item .p { color:#9aa4af; font-family:ui-monospace,Menlo,monospace; font-size:.75rem; }
+  textarea{ width:100%; background:#14181d; color:#e6e8eb; border:1px solid #2a2f37; border-radius:8px; font-family:ui-monospace,Menlo,monospace; font-size:.8rem; padding:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>RewindPix · Presets</h1>
+  <div class="status-bar" id="status">not connected</div>
+  <span class="spacer"></span>
+  <nav><a href="index.html">Gallery</a><a href="develop.html">Develop</a><a href="set-roll-size.html">Roll size</a></nav>
+</header>
+<main>
+  <div class="row">
+    <button id="loadcam">Load current from camera</button>
+    <span style="color:#9aa4af;font-size:.82rem">Preview (params only, no LUT):</span>
+    <canvas id="chart" width="360" height="120"></canvas>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <div class="banks">
+    <div class="bank">
+      <h2>Film slots <span style="color:#7b848f;font-weight:400;font-size:.8rem">— name (≤10, UPPERCASE) + 7 params</span></h2>
+      <div id="filmSlots"></div>
+      <button class="primary" id="applyFilm">Apply film slots to camera</button>
+    </div>
+    <div class="bank">
+      <h2>In-camera slots <span style="color:#7b848f;font-weight:400;font-size:.8rem">— params only (names fixed)</span></h2>
+      <div id="incamSlots"></div>
+      <button class="primary" id="applyIncam">Apply in-camera slots to camera</button>
+    </div>
+  </div>
+
+  <h2 style="margin-top:24px;font-size:1rem">Preset collection</h2>
+  <div class="row">
+    <select id="saveFrom"></select>
+    <input id="saveName" type="text" placeholder="preset name" style="width:150px">
+    <button id="save">Save preset</button>
+    <button id="exportAll">Export all</button>
+    <button id="importBtn">Import</button>
+  </div>
+  <div id="coll"></div>
+  <textarea id="io" rows="3" placeholder="Import: paste tokens (RWP1|NAME|LUM:CON:RG:GG:BG:HUE:SAT) or exported JSON here, then Import." style="display:none"></textarea>
+
+  <p class="caution">Unofficial · reverse-engineered · use at your own risk. Applying writes to the camera's filter slots (`8002/8012…`, `8006…`). Open from the camera's WiFi to apply.</p>
+</main>
+<script src="camera.js"></script>
+<script src="develop.js"></script>
+<script src="presets-ui.js"></script>
+</body>
+</html>

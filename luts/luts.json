@@ -1,0 +1,44 @@
+{
+  "luts": [
+    {
+      "name": "BWHC",
+      "file": "BWHC.png"
+    },
+    {
+      "name": "BWIR",
+      "file": "BWIR.png"
+    },
+    {
+      "name": "BWLC",
+      "file": "BWLC.png"
+    },
+    {
+      "name": "C41",
+      "file": "C41.png"
+    },
+    {
+      "name": "FJEXP",
+      "file": "FJEXP.png"
+    },
+    {
+      "name": "FJVIVID",
+      "file": "FJVIVID.png"
+    },
+    {
+      "name": "GLEXP",
+      "file": "GLEXP.png"
+    },
+    {
+      "name": "GLVIVID",
+      "file": "GLVIVID.png"
+    },
+    {
+      "name": "GRNSKETCH",
+      "file": "GRNSKETCH.png"
+    },
+    {
+      "name": "LCLOOK",
+      "file": "LCLOOK.png"
+    }
+  ]
+}

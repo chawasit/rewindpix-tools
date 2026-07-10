@@ -1,10 +1,11 @@
 # RewindPix Tools
 
-Small, dependency-free **browser tools + scripts** for the RewindPix camera
+Small, dependency-free **browser app + tools** for the RewindPix camera
 (**Novatek NT96565**, model PS135) over its local WiFi HTTP API.
 
-Everything here is static HTML + vanilla JS, meant to be **run locally or self-hosted over plain HTTP**
-(not HTTPS — see below). The repo is source only; there's no hosted site.
+Everything here is static HTML + vanilla JS (WebGL for develop), meant to be **run locally or served by
+the camera itself over plain HTTP** (not HTTPS — see below). Installable as a standalone app via **Add to
+Home Screen** (manifest + icons). The repo is source only; there's no hosted site.
 
 > ⚠️ **Unofficial — use at your own risk.** These are community, reverse-engineered tools, **not**
 > affiliated with or endorsed by the RewindPix vendor. They talk to the camera's undocumented local API.
@@ -14,7 +15,9 @@ Everything here is static HTML + vanilla JS, meant to be **run locally or self-h
 
 | Tool | What it does |
 |------|--------------|
-| **[Gallery + Sync](index.html)** — `index.html` | Connect to the camera, browse photos by folder, see what's new since last sync, download shots. Serialized single-client client; skips the `._FILM` duplicate. |
+| **[Gallery + Sync](index.html)** — `index.html` | The app home. Connect to the camera, browse photos by folder, see what's new since last sync, download shots, or send one to **Develop**. Serialized single-client client; skips the `._FILM` duplicate. |
+| [Develop](develop.html) | Apply a film **HALD-CLUT LUT** + 7 params (luminance, contrast, RGB gains, hue, saturation) to a photo in-browser (WebGL), preview live, and export a full-resolution JPEG. Loads a photo from the gallery (`?photo=`) or a file upload. |
+| [Presets](presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (params only, with an override / keep-baked toggle), apply them to the camera, and save / import / export a preset collection. |
 | [Set roll size](set-roll-size.html) | Sets the frame budget (max photos) to any number (`cmd=8004`). Default 99; `0` clears the roll. |
 
 ## How to use
@@ -48,6 +51,9 @@ over `file://` or `http://` instead (no HTTPS = no block). Pick one:
 - Tools are **fire-and-forget** where the camera returns no CORS headers — the request reaches the camera
   but the reply can't be read, so **verify the result on the camera's screen**.
 - The camera is **single-client** and wedges under rapid-fire requests — one action at a time.
+- **Install as an app:** open it from the camera's WiFi, then use your browser's **Add to Home Screen** — it
+  runs standalone (manifest + icons). No offline cache: the camera's LAN IP isn't a secure context, so a
+  service worker can't register (and there's nothing to serve offline anyway — the camera is the backend).
 - Full protocol reference: **[RewindPix / NT96565 WiFi API notes](https://gist.github.com/chawasit/6b3912419dd7600c90361d8231757d79)**.
 
 ## The camera as a host (HFS)

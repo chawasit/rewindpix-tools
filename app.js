@@ -60,9 +60,11 @@
         if (isNew) { const b = document.createElement("span"); b.className = "new"; b.textContent = "NEW"; cell.appendChild(b); }
         const cap = document.createElement("div"); cap.className = "cap";
         const nm = document.createElement("span"); nm.className = "name"; nm.textContent = f.name; nm.title = f.name + " · " + fmtBytes(f.size);
-        const dl = document.createElement("button"); dl.className = "dl-btn"; dl.textContent = "⤓";
+        const dl = document.createElement("button"); dl.className = "dl-btn"; dl.textContent = "⤓"; dl.title = "Download";
         dl.style.cssText = "padding:2px 8px;font-size:.8rem"; dl.onclick = () => download(f.fpath, f.name, dl);
-        cap.appendChild(nm); cap.appendChild(dl); cell.appendChild(cap); grid.appendChild(cell);
+        const dev = document.createElement("a"); dev.className = "dl-btn"; dev.textContent = "Develop";
+        dev.style.cssText = "padding:2px 8px;font-size:.8rem;text-decoration:none"; dev.href = "develop.html?photo=" + encodeURIComponent(f.fpath);
+        cap.appendChild(nm); cap.appendChild(dev); cap.appendChild(dl); cell.appendChild(cap); grid.appendChild(cell);
       }
       galleryEl.appendChild(grid);
     }

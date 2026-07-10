@@ -29,6 +29,8 @@
   let _catP = null; const lutCat = () => (_catP || (_catP = (window.RPDev ? RPDev.lutCatalog() : Promise.resolve({}))));
   const isFilm = (fp) => /[\\/]\._FILM[\\/]/.test(fp);
   const filmName = (name) => { const m = (name || "").match(/^DCIM\d{8}(.+?)_\d+\.[^.]+$/i); return m ? m[1].toUpperCase() : null; };
+  const exPickReq = () => { try { return sessionStorage.getItem("rp_expick_req") === "1"; } catch (e) { return false; } };
+  function pickExample(f) { try { sessionStorage.setItem("rp_expick", f.fpath); sessionStorage.setItem("rp_expick_name", f.name); sessionStorage.removeItem("rp_expick_req"); } catch (e) {} if (window.RP_SPA) location.hash = "#presets"; else location.href = "presets.html"; }
   let _devEng = null;
   async function developURL(blob, lutSrc) {
     let photo; try { photo = await createImageBitmap(blob); } catch (e) { return null; }
@@ -157,7 +159,13 @@
   function renderPage() {
     const seen = RP.seen(), list = filtered();
     galleryEl.innerHTML = "";
-    if (!list.length) { galleryEl.innerHTML = "<div style='color:#7b848f;padding:24px;text-align:center'>No photos in this view.</div>"; return; }
+    if (exPickReq()) {
+      const bn = document.createElement("div"); bn.style.cssText = "background:#1b2740;border:1px solid #2f6feb;border-radius:8px;padding:8px 12px;margin-bottom:10px;color:#cfe0ff;font-size:.85rem;display:flex;align-items:center;justify-content:space-between;gap:10px";
+      bn.innerHTML = "<span>📷 Pick a photo to use as the Presets example — tap one.</span>";
+      const cx = document.createElement("button"); cx.textContent = "Cancel"; cx.onclick = () => { try { sessionStorage.removeItem("rp_expick_req"); } catch (e) {} if (window.RP_SPA) location.hash = "#presets"; else location.href = "presets.html"; };
+      bn.appendChild(cx); galleryEl.appendChild(bn);
+    }
+    if (!list.length) { const em = document.createElement("div"); em.style.cssText = "color:#7b848f;padding:24px;text-align:center"; em.textContent = "No photos in this view."; galleryEl.appendChild(em); return; }
     const grid = document.createElement("div"); grid.className = "grid";
     list.slice(0, shown).forEach((f, idx) => {
       const cell = document.createElement("div"); cell.className = "cell loading"; cell.tabIndex = 0; cell.style.cursor = "pointer";
@@ -167,7 +175,7 @@
       if (!seen.has(f.fpath)) { const b = document.createElement("span"); b.className = "new"; b.textContent = "NEW"; cell.appendChild(b); }
       const cap = document.createElement("div"); cap.className = "cap"; const nm = document.createElement("span"); nm.className = "name"; nm.textContent = f.name; nm.title = f.name + " · " + fmtBytes(f.size);
       cap.appendChild(nm); cell.appendChild(cap); grid.appendChild(cell);
-      cell.onclick = () => { if (selectMode) toggleSel(f, cell); else openViewer(list, idx); };
+      cell.onclick = () => { if (exPickReq()) return pickExample(f); if (selectMode) toggleSel(f, cell); else openViewer(list, idx); };
       cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cell.onclick(); } };
     });
     galleryEl.appendChild(grid);

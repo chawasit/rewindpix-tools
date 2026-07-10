@@ -83,6 +83,15 @@ for name in FALLBACK:
     RP_LUTS[name] = "data:image/png;base64," + b64(p)
     picked.append(name); total += p.stat().st_size
 
+# ---- sample photos for the Presets "Example" (small JPEGs downscaled from the src/samples RAW originals) ----
+RP_SAMPLES, samp_total = {}, 0
+_sj = SRC / "samples" / "samples.json"
+if _sj.exists():
+    for s in json.loads(_sj.read_text(encoding="utf-8")).get("samples", []):
+        sp = SRC / "samples" / s["file"]
+        if sp.exists():
+            RP_SAMPLES[s["name"]] = "data:image/jpeg;base64," + b64(sp); samp_total += sp.stat().st_size
+
 ICON = b64(SRC / "icon-192.png")
 MANIFEST = base64.b64encode(json.dumps({
     "name": "RewindPix", "short_name": "RewindPix", "start_url": ".", "display": "standalone",
@@ -118,7 +127,7 @@ doc = f"""<!doctype html>
 </header>
 <main id="app"></main>
 
-<script>window.RP_SPA = true; window.RP_LUTS = {json.dumps(RP_LUTS)};</script>
+<script>window.RP_SPA = true; window.RP_LUTS = {json.dumps(RP_LUTS)}; window.RP_SAMPLES = {json.dumps(RP_SAMPLES)};</script>
 <script>
 {SHARED}
 </script>
@@ -163,3 +172,4 @@ addEventListener("hashchange", route); route();
 OUT.write_text(doc, encoding="utf-8", newline="\n")
 print("wrote %s  (%.2f MB)" % (OUT.name, OUT.stat().st_size / 1048576))
 print("inlined %d LUTs (%.2f MB PNG): %s" % (len(picked), total / 1048576, ", ".join(sorted(picked))))
+print("inlined %d sample photos (%.0f KB)" % (len(RP_SAMPLES), samp_total / 1024))

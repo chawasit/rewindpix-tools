@@ -1,0 +1,24 @@
+{
+"samples": [
+{
+"name": "Car",
+"file": "car.jpg"
+},
+{
+"name": "Coast",
+"file": "coast.jpg"
+},
+{
+"name": "Harbour",
+"file": "harbour.jpg"
+},
+{
+"name": "Portrait",
+"file": "portrait.jpg"
+},
+{
+"name": "Street",
+"file": "street.jpg"
+}
+]
+}

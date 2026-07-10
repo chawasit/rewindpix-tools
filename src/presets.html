@@ -29,7 +29,7 @@
   .slot .exstatus.load { color:#cfd4da; }
   .slot .exstatus.ok { color:#9aa4af; }
   .slot .exstatus.err { color:#ffb4b4; }
-  .slot canvas.ex { width:100%; height:auto; border:1px solid #1e232a; border-radius:6px; display:block; }
+  .slot canvas.ex { max-width:100%; max-height:220px; border:1px solid #1e232a; border-radius:6px; display:block; }
   .slot .f { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:.78rem; color:#9aa4af; }
   .slot .f label { width:74px; }
   .slot .f input[type=range]{ flex:1; }
@@ -49,8 +49,8 @@
 <main>
   <div class="row">
     <button id="loadcam">Load current from camera</button>
-    <span style="color:#9aa4af;font-size:.82rem">Preview (params only, no LUT):</span>
-    <canvas id="chart" width="360" height="120"></canvas>
+    <label for="exSample" style="color:#9aa4af;font-size:.82rem">Example photo:</label>
+    <select id="exSample"></select>
   </div>
   <div class="msg" id="msg"></div>
 

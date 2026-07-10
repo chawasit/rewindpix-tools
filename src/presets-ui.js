@@ -9,24 +9,35 @@
   const DEFAULTS = FIELDS.map((f) => f.def);
   function msg(t, k) { const m = $("msg"); m.textContent = t; m.className = "msg show " + (k || "wait"); }
 
-  // ---- preview (params applied to a generated color chart, no LUT) ----
-  const chartSrc = document.createElement("canvas"); chartSrc.width = 360; chartSrc.height = 120;
-  (function drawChart() {
-    const x = chartSrc.getContext("2d");
-    const bars = ["#e33", "#3d3", "#39f", "#3dd", "#d3d", "#ee3", "#fff", "#111", "#c9a37a", "#7a5a3a"];
-    const bw = 360 / bars.length;
-    bars.forEach((c, i) => { x.fillStyle = c; x.fillRect(i * bw, 0, bw, 80); });
-    for (let i = 0; i < 360; i++) { const v = Math.round((i / 359) * 255); x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(i, 80, 1, 40); }
+  // ---- example photo source: bundled samples + a gallery pick, shared across all slot cards ----
+  const ss = { get: (k) => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} }, del: (k) => { try { sessionStorage.removeItem(k); } catch (e) {} } };
+  const exRenderers = [];            // each slot registers renderExample() so switching the source re-renders every card
+  let exPhoto = null;                // the chosen sample / gallery photo (HTMLImageElement)
+  const sampleSrc = Object.assign({}, window.RP_SAMPLES || {});   // name -> src (inlined data URIs on the single-file build)
+  function loadSample(src) { RPDev.load(src).then((img) => { exPhoto = img; exRenderers.forEach((fn) => fn()); }).catch(() => {}); }
+  (function initSampleSelector() {
+    const sel = $("exSample"); if (!sel) return;
+    ss.del("rp_expick_req");   // entering presets cancels any pending gallery-pick request
+    const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
+    fetch("samples/samples.json").then((r) => (r.ok ? r.json() : null)).catch(() => null).then((d) => {
+      if (d && d.samples) d.samples.forEach((s) => { if (!(s.name in sampleSrc)) sampleSrc[s.name] = "samples/" + s.file; });
+      Object.keys(sampleSrc).sort().forEach((n) => opt("s:" + n, n));
+      const picked = ss.get("rp_expick"); let pickedLabel = null;
+      if (picked) {
+        ss.del("rp_expick");
+        pickedLabel = "📷 " + (ss.get("rp_expick_name") || "Gallery photo"); ss.del("rp_expick_name");
+        sampleSrc[pickedLabel] = RP.urlFor(picked); opt("s:" + pickedLabel, pickedLabel);
+      }
+      opt("__gallery__", "📷 Pick from gallery…");
+      const firstOpt = sel.querySelector("option[value^='s:']");
+      const startVal = pickedLabel ? "s:" + pickedLabel : (firstOpt ? firstOpt.value : null);
+      if (startVal) { sel.value = startVal; const nm = startVal.slice(2); if (sampleSrc[nm]) loadSample(sampleSrc[nm]); }
+      sel.onchange = () => {
+        if (sel.value === "__gallery__") { ss.set("rp_expick_req", "1"); if (window.RP_SPA) location.hash = "#gallery"; else location.href = "index.html"; return; }
+        const nm = sel.value.slice(2); if (sampleSrc[nm]) loadSample(sampleSrc[nm]);
+      };
+    });
   })();
-  let previewEngine = null;
-  function preview(params) {
-    try {
-      if (!previewEngine) { previewEngine = RPDev.createEngine(); previewEngine.setPhoto(chartSrc); }
-      const obj = {}; FIELDS.forEach((f, i) => (obj[f.k] = params[i]));
-      previewEngine.render(obj, 360, 120);
-      const c = $("chart"), cx = c.getContext("2d"); cx.clearRect(0, 0, c.width, c.height); cx.drawImage(previewEngine.canvas, 0, 0, c.width, c.height);
-    } catch (e) { /* WebGL may be unavailable; preview is optional */ }
-  }
 
   // ---- slot card ----
   const UNSET = new Array(7).fill(-255);
@@ -63,7 +74,7 @@
       row.innerHTML = `<label>${f.k}</label>`;
       const r = document.createElement("input"); r.type = "range"; r.min = f.min; r.max = f.max; r.step = 1; r.value = f.def;
       const v = document.createElement("span"); v.className = "v"; v.textContent = f.def;
-      r.oninput = () => { v.textContent = r.value; preview(get().params); renderExample(); };
+      r.oninput = () => { v.textContent = r.value; renderExample(); };
       row.appendChild(r); row.appendChild(v); el.appendChild(row); return r;
     });
     // per-slot example: the color chart with this slot's params (+ its LUT, when the name matches one)
@@ -72,14 +83,16 @@
     const exStatus = exWrap.querySelector(".exstatus");
     const exCanvas = document.createElement("canvas"); exCanvas.className = "ex"; exCanvas.width = 300; exCanvas.height = 50;
     exWrap.appendChild(exCanvas); el.appendChild(exWrap);
-    let exEng = null, exLut = null, exLutImg = null, exSeq = 0;
+    let exEng = null, exLut = null, exLutImg = null, exSeq = 0, exSet = null;
     function setExStatus(t, cls) { exStatus.textContent = t; exStatus.className = "exstatus" + (cls ? " " + cls : ""); }
     async function renderExample() {
       const seq = ++exSeq;
       try {
+        if (!exPhoto) { setExStatus("no sample", ""); return; }
         const raw = get().params, pobj = {};
         FIELDS.forEach((f, i) => (pobj[f.k] = raw[i] === -255 ? f.def : raw[i]));
-        if (!exEng) { exEng = RPDev.createEngine(); exEng.setPhoto(chartSrc); }
+        if (!exEng) exEng = RPDev.createEngine();
+        if (exSet !== exPhoto) { exEng.setPhoto(exPhoto); exSet = exPhoto; }
         const nm = (nameEl && nameEl.value || "").toUpperCase(), src = lutSrcMap[nm];
         if (src) {
           if (exLut !== nm) { setExStatus("loading " + nm + "…", "load"); exLutImg = await RPDev.load(src).catch(() => null); exLut = nm; if (seq !== exSeq) return; }
@@ -87,16 +100,19 @@
         } else if (exLut) {
           exLut = null; exLutImg = null;
           try { const lc = exEng.gl.getExtension("WEBGL_lose_context"); lc && lc.loseContext(); } catch (e) {}
-          exEng = RPDev.createEngine(); exEng.setPhoto(chartSrc);
+          exEng = RPDev.createEngine(); exEng.setPhoto(exPhoto); exSet = exPhoto;
         }
-        exEng.render(pobj, exCanvas.width, exCanvas.height);
-        const cx = exCanvas.getContext("2d"); cx.clearRect(0, 0, exCanvas.width, exCanvas.height); cx.drawImage(exEng.canvas, 0, 0, exCanvas.width, exCanvas.height);
+        const w = 384, h = Math.max(1, Math.round(w * exPhoto.height / exPhoto.width));
+        exCanvas.width = w; exCanvas.height = h;
+        exEng.render(pobj, w, h);
+        const cx = exCanvas.getContext("2d"); cx.clearRect(0, 0, w, h); cx.drawImage(exEng.canvas, 0, 0, w, h);
         setExStatus(src ? (exLutImg ? nm + " ✓" : "LUT failed") : "params only", src ? (exLutImg ? "ok" : "err") : "");
       } catch (e) { setExStatus("preview unavailable", "err"); }
     }
+    exRenderers.push(renderExample);
     function setDisabled(d) { sliders.forEach((s) => (s.disabled = d)); el.style.opacity = d ? ".6" : "1"; }
-    if (ovr) ovr.onchange = () => { setDisabled(!ovr.checked); preview(get().params); renderExample(); };
-    function resetParams() { DEFAULTS.forEach((val, i) => { sliders[i].value = val; sliders[i].nextSibling.textContent = val; }); preview(get().params); renderExample(); }
+    if (ovr) ovr.onchange = () => { setDisabled(!ovr.checked); renderExample(); };
+    function resetParams() { DEFAULTS.forEach((val, i) => { sliders[i].value = val; sliders[i].nextSibling.textContent = val; }); renderExample(); }
     function syncLutUi() { if (resetBtn) resetBtn.style.display = lutSet.has((nameEl && nameEl.value || "").toUpperCase()) ? "" : "none"; }
     if (resetBtn) resetBtn.onclick = resetParams;
     lutNamesP.then(() => { syncLutUi(); renderExample(); });
@@ -121,7 +137,6 @@
   const incam = [0, 1, 2].map((i) => makeSlot($("incamSlots"), "In-cam C" + (i + 1), false, true));
   film.forEach((s) => s.set("STD. FILM", DEFAULTS));
   incam.forEach((s) => s.set(null, UNSET.slice()));
-  preview(DEFAULTS);
 
   // ---- camera load / apply ----
   $("loadcam").onclick = async () => {
@@ -131,7 +146,6 @@
       const names = await RP.getSlotNames();
       for (let i = 0; i < 3; i++) film[i].set(names[i], await RP.getParams(RP.FILM.get[i]));
       for (let i = 0; i < 3; i++) incam[i].set(null, await RP.getParams(RP.INCAM.get[i]));
-      preview(film[0].get().params);
       try { const st = await RP.status(); if (st.maxPhotos != null) $("rollN").value = st.maxPhotos; } catch (e) {}
       msg("Loaded current film + in-camera slots from the camera.", "ok");
     } catch (e) { $("status").innerHTML = "<span class='err'>●</span> not reachable"; msg("Load failed: " + e.message + " — join the camera's WiFi.", "err"); }
@@ -180,7 +194,7 @@
       const right = document.createElement("div"); right.style.cssText = "display:flex;gap:6px";
       const sel = document.createElement("select"); sel.innerHTML = opts; sel.style.cssText = "padding:5px;font-size:.8rem";
       const apply = document.createElement("button"); apply.textContent = "Apply"; apply.style.cssText = "padding:5px 9px;font-size:.8rem";
-      apply.onclick = () => { SLOTS[+sel.value][1](p.params); preview(p.params); msg("Loaded “" + p.name + "” into " + SLOTS[+sel.value][0] + " (not yet pushed — hit Apply … to camera).", "ok"); };
+      apply.onclick = () => { SLOTS[+sel.value][1](p.params); msg("Loaded “" + p.name + "” into " + SLOTS[+sel.value][0] + " (not yet pushed — hit Apply … to camera).", "ok"); };
       const del = document.createElement("button"); del.textContent = "✕"; del.style.cssText = "padding:5px 9px;font-size:.8rem";
       del.onclick = () => { const a = load(); a.splice(idx, 1); save(a); renderColl(); };
       right.append(sel, apply, del); it.appendChild(right); box.appendChild(it);

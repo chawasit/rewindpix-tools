@@ -9,3 +9,9 @@ desktop.ini
 # test artifacts
 _*.jpg
 _test*
+
+# raw sample originals (only the downscaled *.jpg previews are committed)
+src/samples/*.ARW
+src/samples/*.CR2
+src/samples/*.arw
+src/samples/*.cr2

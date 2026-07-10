@@ -17,13 +17,16 @@
     const bundled = await bundledNames();
     const custom = RPDev.customLuts.list();
     box.innerHTML = "";
-    const row = (name, kind, onDel) => {
+    const row = (name, kind, onDel, prevSrc) => {
       const it = document.createElement("div"); it.className = "coll-item";
-      it.innerHTML = "<div><b>" + name + "</b> <span class='p'>" + kind + "</span></div>";
+      const info = document.createElement("div"); info.className = "lutinfo";
+      if (prevSrc) { const img = document.createElement("img"); img.className = "lutthumb"; img.loading = "lazy"; img.alt = name; img.onerror = () => img.remove(); img.src = prevSrc; info.appendChild(img); }
+      const meta = document.createElement("div"); meta.innerHTML = "<b>" + name + "</b> <span class='p'>" + kind + "</span>"; info.appendChild(meta);
+      it.appendChild(info);
       if (onDel) { const d = document.createElement("button"); d.textContent = "✕"; d.style.cssText = "padding:5px 9px;font-size:.8rem"; d.onclick = onDel; it.appendChild(d); }
       box.appendChild(it);
     };
-    [...bundled].sort().forEach((n) => row(n, "bundled"));
+    [...bundled].sort().forEach((n) => row(n, "bundled", null, "previews/" + n + ".jpg"));
     custom.forEach((l) => row(l.name, "custom", () => { RPDev.customLuts.remove(l.name); renderLuts(); msg("Removed custom LUT: " + l.name, "ok"); }));
     if (!bundled.size && !custom.length) box.innerHTML = "<div style='color:#7b848f;font-size:.85rem'>No LUTs. Upload one, or Sync from GitHub.</div>";
     $("lutCount").textContent = "(" + (bundled.size + custom.length) + ")";

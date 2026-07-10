@@ -228,6 +228,22 @@
   $("selall").onclick = () => { filtered().forEach((f) => selected.add(f.fpath)); refreshSel(); renderPage(); };
   $("seldl").onclick = () => downloadSelected(false);
   $("selzip").onclick = () => downloadSelected(true);
+  $("seldel").onclick = () => deleteSelected();
+  async function deleteSelected() {
+    const files = allFiles.filter((f) => selected.has(f.fpath));
+    if (!files.length) { msg("Nothing selected.", "err"); return; }
+    if (!confirm("Delete " + files.length + " photo(s) from the camera? This can't be undone.")) return;
+    $("seldl").disabled = $("selzip").disabled = $("seldel").disabled = true;
+    const del = new Set(); let fail = 0;
+    try {
+      for (let i = 0; i < files.length; i++) { const f = files[i]; msg("Deleting " + (i + 1) + "/" + files.length + ": " + f.name + "…", "wait"); try { const xml = await RP.deleteFile(f.fpath); if (RP.ackOk(xml)) del.add(f.fpath); else fail++; } catch (e) { fail++; } }
+      selectMode = false; selected.clear(); document.body.classList.remove("selecting"); $("selbar").style.display = "none"; $("galtools").style.display = "flex";
+      lastFiles = lastFiles.filter((f) => !del.has(f.fpath));
+      renderGallery(lastFiles);
+      msg("Deleted " + del.size + " photo(s)." + (fail ? " " + fail + " failed — try again." : ""), fail ? "err" : "ok");
+    } catch (e) { msg("Delete failed: " + e.message, "err"); }
+    finally { $("seldl").disabled = $("selzip").disabled = $("seldel").disabled = false; }
+  }
   async function downloadSelected(zip) {
     const files = allFiles.filter((f) => selected.has(f.fpath));
     if (!files.length) { msg("Nothing selected.", "err"); return; }

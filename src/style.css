@@ -31,6 +31,8 @@ button:active { transform: scale(.97); }
 button:disabled { opacity: .5; cursor: default; }
 button.primary { background: #2f6feb; border-color: #2f6feb; color: #fff; font-weight: 600; }
 button.primary:hover { background: #4680f0; }
+button.danger { border-color: #7a2c2c; color: #ffb4b4; }
+button.danger:hover { border-color: #a33a3a; background: #2a0f0f; }
 
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
 input[type=number], input[type=text] {

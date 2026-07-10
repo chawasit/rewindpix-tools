@@ -22,32 +22,33 @@ a { color: #6ea8fe; }
 code { background: #14181d; border: 1px solid #2a2f37; border-radius: 5px; padding: 1px 5px; font-size: .85em; }
 
 header {
-  position: sticky; top: 0; z-index: 5; background: #12161b; border-bottom: 1px solid #1e232a;
-  padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 30; background: rgba(18,22,27,.92); backdrop-filter: blur(10px);
+  border-bottom: 1px solid #1e232a; padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
-header h1 { font-size: 1.05rem; margin: 0; }
+header h1 { font-size: 1.05rem; margin: 0; letter-spacing: -.01em; }
 header .spacer { flex: 1; }
-header nav a { margin-left: 14px; font-size: .9rem; }
 
 .status-bar { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; color: #9aa4af; }
 .status-bar b { color: #e6e8eb; }
 .status-bar .ok { color: #9ff196; }
 .status-bar .err { color: #ffb4b4; }
 
-main { padding: 16px; max-width: 1100px; margin: 0 auto; }
+main { padding: 16px 16px 92px; max-width: 1100px; margin: 0 auto; }
 
 button {
   cursor: pointer; border: 1px solid #2a2f37; background: #1b2027; color: #e6e8eb;
-  padding: 9px 14px; border-radius: 10px; font-size: .92rem;
+  padding: 10px 15px; border-radius: 12px; font-size: .92rem; min-height: 42px;
+  transition: transform .08s ease, background .15s ease, border-color .15s ease;
 }
 button:hover { border-color: #3a424d; background: #222833; }
+button:active { transform: scale(.97); }
 button:disabled { opacity: .5; cursor: default; }
 button.primary { background: #2f6feb; border-color: #2f6feb; color: #fff; font-weight: 600; }
 button.primary:hover { background: #4680f0; }
 
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
 input[type=number], input[type=text] {
-  padding: 9px 11px; border-radius: 9px; border: 1px solid #2a2f37; background: #14181d; color: #e6e8eb;
+  padding: 10px 12px; border-radius: 11px; border: 1px solid #2a2f37; background: #14181d; color: #e6e8eb;
   font-size: .95rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; width: 110px;
 }
 
@@ -59,7 +60,7 @@ input[type=number], input[type=text] {
 
 .folder-title { margin: 20px 0 8px; font-size: .95rem; color: #cfd4da; border-bottom: 1px solid #1e232a; padding-bottom: 6px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.cell { position: relative; background: #12161b; border: 1px solid #1e232a; border-radius: 10px; overflow: hidden; }
+.cell { position: relative; background: #12161b; border: 1px solid #1e232a; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .1s ease; }
 .cell img { display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover; background: #0a0c0f; }
 .cell .cap { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 6px 8px; font-size: .72rem; color: #9aa4af; }
 .cell .cap .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -82,6 +83,17 @@ input[type=number], input[type=text] {
 .viewer .v-next { right: 0; justify-content: flex-end; padding-right: 12px; }
 .viewer .v-actions { display: flex; gap: 10px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
 .viewer .v-actions button { flex: 1; padding: 14px; font-size: 1rem; border-radius: 12px; }
+
+/* bottom tab bar (thumb-zone navigation) */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex;
+  background: rgba(18,22,27,.94); backdrop-filter: blur(12px); border-top: 1px solid #1e232a;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+.tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 0; min-height: 50px; color: #7b848f; font-size: .66rem; text-decoration: none; transition: color .15s ease; }
+.tabbar a svg { width: 22px; height: 22px; stroke: currentColor; fill: none; }
+.tabbar a.active { color: #e6e8eb; }
+.tabbar a.active svg { stroke: #2f6feb; }
+.cell:active { transform: scale(.985); }
 
 .dev-wrap { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
   @media (max-width: 780px){ .dev-wrap { grid-template-columns: 1fr; } }
@@ -124,7 +136,6 @@ input[type=number], input[type=text] {
   <h1>RewindPix</h1>
   <div class="status-bar" id="status"></div>
   <span class="spacer"></span>
-  <nav id="nav"><a href="#gallery">Gallery</a> · <a href="#develop">Develop</a> · <a href="#presets">Presets</a> · <a href="#library">Library</a></nav>
   <button id="rp-update" title="Update the app from the GitHub repo (needs internet + camera WiFi)" style="margin-left:12px">⟳ Update</button>
 </header>
 <main id="app"></main>
@@ -426,6 +437,33 @@ input[type=number], input[type=text] {
   };
 })();
 
+/* RewindPix bottom tab bar — thumb-zone navigation for both the multi-file pages and the single-file
+ * SPA. Built once; marks the active tab from the hash (SPA) or the pathname (multi-file). */
+(function () {
+  if (document.getElementById("rp-tabbar")) return;
+  const S = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + "</svg>";
+  const TABS = [
+    { id: "gallery", href: "index.html", label: "Gallery", icon: S('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>') },
+    { id: "develop", href: "develop.html", label: "Develop", icon: S('<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>') },
+    { id: "presets", href: "presets.html", label: "Presets", icon: S('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>') },
+    { id: "library", href: "library.html", label: "Library", icon: S('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>') },
+  ];
+  const spa = !!window.RP_SPA;
+  const bar = document.createElement("nav"); bar.className = "tabbar"; bar.id = "rp-tabbar";
+  bar.innerHTML = TABS.map((t) => '<a href="' + (spa ? "#" + t.id : t.href) + '" data-tab="' + t.id + '">' + t.icon + "<span>" + t.label + "</span></a>").join("");
+  document.body.appendChild(bar);
+  const mark = (id) => bar.querySelectorAll("a").forEach((a) => a.classList.toggle("active", a.dataset.tab === id));
+  if (spa) {
+    const cur = () => (location.hash.replace(/^#/, "").split("?")[0]) || "gallery";
+    window.RPNav = mark;                                  // the SPA router calls this on view change
+    mark(cur()); addEventListener("hashchange", () => mark(cur()));
+  } else {
+    const page = location.pathname.split("/").pop() || "index.html";
+    const t = TABS.find((x) => x.href === page) || TABS[0];
+    mark(t.id);
+  }
+})();
+
 </script>
 <script>
 const TPL = { gallery: "<div class=\"row\">\n    <button class=\"primary\" id=\"sync\">Sync \u21bb</button>\n    <button id=\"downloadall\">Download all (ZIP)</button>\n    <button id=\"reconnect\">Reconnect</button>\n    <button id=\"marksynced\">Mark all synced</button>\n    <button id=\"clearseen\">Reset sync memory</button>\n  </div>\n  <div class=\"msg\" id=\"msg\"></div>\n  <div id=\"gallery\"></div>\n  <p class=\"caution\">\n    Unofficial \u00b7 reverse-engineered \u00b7 use at your own risk. For full access open this\n    <b>from the camera's own WiFi</b> (served by the camera at <code>http://192.168.1.254/</code>).\n  </p>", develop: "<div class=\"row\">\n    <label class=\"filebtn\"><button onclick=\"document.getElementById('file').click()\">Choose photo\u2026</button>\n      <input id=\"file\" type=\"file\" accept=\"image/jpeg,image/png\" hidden></label>\n    <button id=\"fromcam\">From camera\u2026</button>\n    <button id=\"export\" class=\"primary\" disabled>Export full-res \u2913</button>\n    <button id=\"savecam\" disabled>Save to camera \u2912</button>\n    <span id=\"photoName\" style=\"color:#9aa4af;font-size:.85rem\"></span>\n  </div>\n  <div id=\"picker\" style=\"display:none\">\n    <div class=\"row\"><b style=\"flex:1\">Pick a photo from the camera</b><button id=\"pickclose\">Close</button></div>\n    <div id=\"pickgrid\" class=\"grid\"></div>\n  </div>\n  <div class=\"msg\" id=\"msg\"></div>\n  <div class=\"dev-wrap\">\n    <div class=\"pv\"><div id=\"preview\"><div style=\"padding:40px;color:#7b848f;text-align:center\">Choose a photo to develop.</div></div><div id=\"busy\" class=\"busy\"><div class=\"spin\"></div><span id=\"busytxt\">Processing\u2026</span></div></div>\n    <div class=\"panel\">\n      <label>Film look (LUT)</label>\n      <select id=\"lut\"><option value=\"\">None (original)</option></select>\n      <label class=\"filebtn\" style=\"margin-top:8px\"><button id=\"lutupbtn\" style=\"width:100%\">\uff0b Upload LUT (HALD .png)</button>\n        <input id=\"lutfile\" type=\"file\" accept=\"image/png\" hidden></label>\n      <div id=\"sliders\"></div>\n      <button id=\"reset\" style=\"margin-top:14px\">Reset params</button>\n    </div>\n  </div>\n  <p class=\"caution\">Unofficial \u00b7 reverse-engineered \u00b7 use at your own risk. Develop runs in your browser (WebGL). \u201cSave to camera\u201d writes the result to <code>DCIM/Developed_Photos</code> on the SD (verified via the file catalog); the camera re-serves it over WiFi only after a re-index / power-cycle. Falls back to a device download if the write can't be confirmed.</p>", presets: "<div class=\"row\">\n    <button id=\"loadcam\">Load current from camera</button>\n    <span style=\"color:#9aa4af;font-size:.82rem\">Preview (params only, no LUT):</span>\n    <canvas id=\"chart\" width=\"360\" height=\"120\"></canvas>\n  </div>\n  <div class=\"msg\" id=\"msg\"></div>\n\n  <div class=\"banks\">\n    <div class=\"bank\">\n      <h2>Film slots <span style=\"color:#7b848f;font-weight:400;font-size:.8rem\">\u2014 name (\u226410, UPPERCASE) + 7 params</span></h2>\n      <div id=\"filmSlots\"></div>\n      <button class=\"primary\" id=\"applyFilm\">Apply film slots to camera</button>\n    </div>\n    <div class=\"bank\">\n      <h2>In-camera slots <span style=\"color:#7b848f;font-weight:400;font-size:.8rem\">\u2014 params only (names fixed)</span></h2>\n      <div id=\"incamSlots\"></div>\n      <button class=\"primary\" id=\"applyIncam\">Apply in-camera slots to camera</button>\n    </div>\n  </div>\n\n  <h2 style=\"margin-top:24px;font-size:1rem\">Roll size <span style=\"color:#7b848f;font-weight:400;font-size:.8rem\">\u2014 frame budget (max photos)</span></h2>\n  <div class=\"row\">\n    <input id=\"rollN\" type=\"number\" min=\"0\" step=\"1\" value=\"99\" style=\"width:90px\" aria-label=\"Max photos\">\n    <button class=\"primary\" id=\"setRoll\">Set roll size</button>\n    <button data-roll=\"0\">0 (clear)</button>\n    <button data-roll=\"24\">24</button>\n    <button data-roll=\"36\">36</button>\n    <button data-roll=\"99\">99</button>\n    <span style=\"color:#9aa4af;font-size:.82rem\"><code>cmd=8004</code>; <code>0</code> clears the roll</span>\n  </div>\n\n  <h2 style=\"margin-top:24px;font-size:1rem\">Preset collection</h2>\n  <div class=\"row\">\n    <select id=\"saveFrom\"></select>\n    <input id=\"saveName\" type=\"text\" placeholder=\"preset name\" style=\"width:150px\">\n    <button id=\"save\">Save preset</button>\n  </div>\n  <div id=\"coll\"></div>\n\n  <p class=\"caution\">Unofficial \u00b7 reverse-engineered \u00b7 use at your own risk. Applying writes to the camera's filter slots (`8002/8012\u2026`, `8006\u2026`). Open from the camera's WiFi to apply.</p>", library: "<h2 style=\"font-size:1rem\">LUTs <span id=\"lutCount\" style=\"color:#7b848f;font-weight:400\"></span></h2>\n  <div class=\"row\">\n    <button class=\"primary\" id=\"lutSync\">\u27f3 Sync LUTs from GitHub</button>\n    <label class=\"filebtn\"><button id=\"lutUp\">\uff0b Upload LUT (.png)</button><input id=\"lutFile\" type=\"file\" accept=\"image/png\" hidden></label>\n  </div>\n  <div class=\"msg\" id=\"msg\"></div>\n  <div id=\"lutList\"></div>\n  <p class=\"caution\" style=\"border:0;margin-top:6px\">Bundled LUTs load from <code>luts/</code>; custom LUTs live in your browser. <b>Sync</b> fetches missing LUTs from GitHub into the camera's <code>luts/</code> \u2014 needs internet <b>and</b> the camera's WiFi at once (phone on cellular); the full set is heavy over WiFi, so USB is faster for a first load.</p>\n\n  <h2 style=\"margin-top:22px;font-size:1rem\">Presets backup <span id=\"presetCount\" style=\"color:#7b848f;font-weight:400\"></span></h2>\n  <div class=\"row\">\n    <button id=\"pExport\">Export all</button>\n    <button id=\"pImport\">Import</button>\n    <button id=\"pClear\">Clear all</button>\n  </div>\n  <textarea id=\"pio\" rows=\"4\" placeholder=\"Import: paste tokens (RWP1|NAME|LUM:CON:RG:GG:BG:HUE:SAT) or exported JSON, then Import.\" style=\"display:none\"></textarea>\n  <p class=\"caution\">Create + apply presets on the <b>Presets</b> tab; this backs up / restores the whole collection.</p>" };
@@ -436,7 +474,7 @@ function show(v) {
   appEl.innerHTML = TPL[v];
   document.getElementById("status").textContent = "";
   const s = document.createElement("script"); s.textContent = JS[v]; appEl.appendChild(s);
-  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + v));
+  if (window.RPNav) window.RPNav(v);
 }
 function route() { let v = (location.hash.replace(/^#/, "").split("?")[0]) || "gallery"; if (!VIEWS.includes(v)) v = "gallery"; show(v); }
 async function rpUpdate() {

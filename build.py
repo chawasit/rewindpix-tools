@@ -68,7 +68,7 @@ JS = {
 }
 
 # shared, loaded once (union of the pages' <script src=...> libs)
-SHARED = "\n".join(read(f) for f in ("camera.js", "zip.js", "develop.js"))
+SHARED = "\n".join(read(f) for f in ("camera.js", "zip.js", "develop.js", "nav.js"))
 CSS = "\n".join([read("style.css"), head_style(dev), head_style(pre), head_style(lib)])
 
 # ---- a few representative LUTs inlined as a fallback so a lone rewindpix.html still has looks;
@@ -112,7 +112,6 @@ doc = f"""<!doctype html>
   <h1>RewindPix</h1>
   <div class="status-bar" id="status"></div>
   <span class="spacer"></span>
-  <nav id="nav"><a href="#gallery">Gallery</a> · <a href="#develop">Develop</a> · <a href="#presets">Presets</a> · <a href="#library">Library</a></nav>
   <button id="rp-update" title="Update the app from the GitHub repo (needs internet + camera WiFi)" style="margin-left:12px">⟳ Update</button>
 </header>
 <main id="app"></main>
@@ -130,7 +129,7 @@ function show(v) {{
   appEl.innerHTML = TPL[v];
   document.getElementById("status").textContent = "";
   const s = document.createElement("script"); s.textContent = JS[v]; appEl.appendChild(s);
-  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + v));
+  if (window.RPNav) window.RPNav(v);
 }}
 function route() {{ let v = (location.hash.replace(/^#/, "").split("?")[0]) || "gallery"; if (!VIEWS.includes(v)) v = "gallery"; show(v); }}
 async function rpUpdate() {{

@@ -8,32 +8,33 @@ a { color: #6ea8fe; }
 code { background: #14181d; border: 1px solid #2a2f37; border-radius: 5px; padding: 1px 5px; font-size: .85em; }
 
 header {
-  position: sticky; top: 0; z-index: 5; background: #12161b; border-bottom: 1px solid #1e232a;
-  padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 30; background: rgba(18,22,27,.92); backdrop-filter: blur(10px);
+  border-bottom: 1px solid #1e232a; padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
-header h1 { font-size: 1.05rem; margin: 0; }
+header h1 { font-size: 1.05rem; margin: 0; letter-spacing: -.01em; }
 header .spacer { flex: 1; }
-header nav a { margin-left: 14px; font-size: .9rem; }
 
 .status-bar { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; color: #9aa4af; }
 .status-bar b { color: #e6e8eb; }
 .status-bar .ok { color: #9ff196; }
 .status-bar .err { color: #ffb4b4; }
 
-main { padding: 16px; max-width: 1100px; margin: 0 auto; }
+main { padding: 16px 16px 92px; max-width: 1100px; margin: 0 auto; }
 
 button {
   cursor: pointer; border: 1px solid #2a2f37; background: #1b2027; color: #e6e8eb;
-  padding: 9px 14px; border-radius: 10px; font-size: .92rem;
+  padding: 10px 15px; border-radius: 12px; font-size: .92rem; min-height: 42px;
+  transition: transform .08s ease, background .15s ease, border-color .15s ease;
 }
 button:hover { border-color: #3a424d; background: #222833; }
+button:active { transform: scale(.97); }
 button:disabled { opacity: .5; cursor: default; }
 button.primary { background: #2f6feb; border-color: #2f6feb; color: #fff; font-weight: 600; }
 button.primary:hover { background: #4680f0; }
 
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
 input[type=number], input[type=text] {
-  padding: 9px 11px; border-radius: 9px; border: 1px solid #2a2f37; background: #14181d; color: #e6e8eb;
+  padding: 10px 12px; border-radius: 11px; border: 1px solid #2a2f37; background: #14181d; color: #e6e8eb;
   font-size: .95rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; width: 110px;
 }
 
@@ -45,7 +46,7 @@ input[type=number], input[type=text] {
 
 .folder-title { margin: 20px 0 8px; font-size: .95rem; color: #cfd4da; border-bottom: 1px solid #1e232a; padding-bottom: 6px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.cell { position: relative; background: #12161b; border: 1px solid #1e232a; border-radius: 10px; overflow: hidden; }
+.cell { position: relative; background: #12161b; border: 1px solid #1e232a; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .1s ease; }
 .cell img { display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover; background: #0a0c0f; }
 .cell .cap { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 6px 8px; font-size: .72rem; color: #9aa4af; }
 .cell .cap .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -68,3 +69,14 @@ input[type=number], input[type=text] {
 .viewer .v-next { right: 0; justify-content: flex-end; padding-right: 12px; }
 .viewer .v-actions { display: flex; gap: 10px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
 .viewer .v-actions button { flex: 1; padding: 14px; font-size: 1rem; border-radius: 12px; }
+
+/* bottom tab bar (thumb-zone navigation) */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex;
+  background: rgba(18,22,27,.94); backdrop-filter: blur(12px); border-top: 1px solid #1e232a;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+.tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 0; min-height: 50px; color: #7b848f; font-size: .66rem; text-decoration: none; transition: color .15s ease; }
+.tabbar a svg { width: 22px; height: 22px; stroke: currentColor; fill: none; }
+.tabbar a.active { color: #e6e8eb; }
+.tabbar a.active svg { stroke: #2f6feb; }
+.cell:active { transform: scale(.985); }

@@ -1,6 +1,14 @@
 {
   "luts": [
     {
+      "name": "BLUESKETCH",
+      "file": "BLUESKETCH.png"
+    },
+    {
+      "name": "BW",
+      "file": "BW.png"
+    },
+    {
       "name": "BWHC",
       "file": "BWHC.png"
     },
@@ -17,6 +25,26 @@
       "file": "C41.png"
     },
     {
+      "name": "CYBERWARM",
+      "file": "CYBERWARM.png"
+    },
+    {
+      "name": "EMBER",
+      "file": "EMBER.png"
+    },
+    {
+      "name": "FADE",
+      "file": "FADE.png"
+    },
+    {
+      "name": "FJ200",
+      "file": "FJ200.png"
+    },
+    {
+      "name": "FJDISP",
+      "file": "FJDISP.png"
+    },
+    {
       "name": "FJEXP",
       "file": "FJEXP.png"
     },
@@ -25,8 +53,20 @@
       "file": "FJVIVID.png"
     },
     {
+      "name": "GL200",
+      "file": "GL200.png"
+    },
+    {
+      "name": "GLDISP",
+      "file": "GLDISP.png"
+    },
+    {
       "name": "GLEXP",
       "file": "GLEXP.png"
+    },
+    {
+      "name": "GLLC",
+      "file": "GLLC.png"
     },
     {
       "name": "GLVIVID",
@@ -37,8 +77,72 @@
       "file": "GRNSKETCH.png"
     },
     {
+      "name": "HBLUE",
+      "file": "HBLUE.png"
+    },
+    {
+      "name": "INSTCOOL",
+      "file": "INSTCOOL.png"
+    },
+    {
+      "name": "INSTWARM",
+      "file": "INSTWARM.png"
+    },
+    {
+      "name": "IRCOLOR",
+      "file": "IRCOLOR.png"
+    },
+    {
       "name": "LCLOOK",
       "file": "LCLOOK.png"
+    },
+    {
+      "name": "NEWSPAPER",
+      "file": "NEWSPAPER.png"
+    },
+    {
+      "name": "OLDWEST",
+      "file": "OLDWEST.png"
+    },
+    {
+      "name": "PINK",
+      "file": "PINK.png"
+    },
+    {
+      "name": "PT400",
+      "file": "PT400.png"
+    },
+    {
+      "name": "PT400LC",
+      "file": "PT400LC.png"
+    },
+    {
+      "name": "PURPLE",
+      "file": "PURPLE.png"
+    },
+    {
+      "name": "REDSCALE",
+      "file": "REDSCALE.png"
+    },
+    {
+      "name": "REDSKETCH",
+      "file": "REDSKETCH.png"
+    },
+    {
+      "name": "RETROCINE",
+      "file": "RETROCINE.png"
+    },
+    {
+      "name": "SABATTIER",
+      "file": "SABATTIER.png"
+    },
+    {
+      "name": "THEHOTEL",
+      "file": "THEHOTEL.png"
+    },
+    {
+      "name": "VS200",
+      "file": "VS200.png"
     }
   ]
 }

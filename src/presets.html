@@ -78,6 +78,15 @@
     </div>
   </div>
 
+  <h2 style="margin-top:24px;font-size:1rem">Camera clock <span style="color:#7b848f;font-weight:400;font-size:.8rem">— date + time (cmd 3005/3006)</span></h2>
+  <div class="row">
+    <button class="primary" id="clockNow">Set to this device's time</button>
+    <input id="clockDate" type="date" aria-label="Date">
+    <input id="clockTime" type="time" step="1" aria-label="Time">
+    <button id="clockSet">Set entered</button>
+    <span style="color:#9aa4af;font-size:.82rem">The camera has no clock menu and the official app never sets it — new photos are stamped with whatever the camera's clock reads.</span>
+  </div>
+
   <h2 style="margin-top:24px;font-size:1rem">Preset collection</h2>
   <div class="row">
     <select id="saveFrom"></select>

@@ -34,6 +34,10 @@ cellular; root-level installs can't self-update since the camera drops root uplo
   plus the 7 colour params in the browser (WebGL), and save back to the camera or your device.
 - **Edit film slots & presets** — rename the 3 film / 3 in-camera slots, tune params, save/restore
   preset collections, and name a slot after a LUT for auto-preview.
+- **Set the camera clock** — the camera has **no on-screen menu** and the official app never sets its
+  date/time, so shots can be stamped with a wrong/reset clock. The **Presets** tab pushes your device's
+  current date + time (or a value you enter) to the camera's RTC (`cmd=3005`/`3006`) — the only known way
+  to fix it (discovered here; verified live).
 
 ## Tools
 
@@ -41,7 +45,7 @@ cellular; root-level installs can't self-update since the camera drops root uplo
 |------|--------------|
 | **[Gallery + Sync](src/index.html)** — `src/index.html` | The app home. Connect, browse photos by folder (**All · Current film · Original_Film · In_Camera_Mode**) with timestamp filters + pagination. **Tap a photo → fullscreen viewer** (swipe / arrows, Develop or Download). The **Current film** view shows the live roll's `._FILM` working copies, each **auto-previewed with the LUT named in its filename** (RAW badge when none matches). **Select** frames to download individually or as one ZIP. **Finish roll** twin-safely deletes the current-roll working copies and resets the frame budget. |
 | [Develop](src/develop.html) | Apply a **film HALD-CLUT LUT** + 7 params (luminance, contrast, RGB gains, hue, saturation) in-browser (WebGL) with a **live processing indicator**, and export a full-res JPEG. Load a photo by **picking from the camera**, the gallery, or file upload; a camera photo whose filename embeds a LUT name (e.g. `…GLVIVID_0003.JPG`) **auto-selects that LUT on load**. **Upload your own LUT** (HALD `.png`). **Save to camera** writes to `DCIM/Developed_Photos` (verified via the `cmd=3015` catalog; falls back to a device download). |
-| [Presets](src/presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (override / keep-baked), **set the roll size** (frame budget), apply to the camera, and save presets. **Name a film slot after a LUT** (`LUT ▾` picker) so shots taken on that slot auto-preview with the matching LUT in the gallery. Every slot shows a live **Example** — pick the **Example photo**: a **colour chart** (default), a bundled sample, or **choose one from the gallery** (camera shot); LUT-named slots get a **↺ defaults** button that resets the 7 params (official LUTs are tuned for defaults). |
+| [Presets](src/presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (override / keep-baked), **set the roll size** (frame budget), **set the camera clock** (push your device's date/time — `cmd=3005/3006`; the only way, since the camera has no menu and the app never does it), apply to the camera, and save presets. **Name a film slot after a LUT** (`LUT ▾` picker) so shots taken on that slot auto-preview with the matching LUT in the gallery. Every slot shows a live **Example** — pick the **Example photo**: a **colour chart** (default), a bundled sample, or **choose one from the gallery** (camera shot); LUT-named slots get a **↺ defaults** button that resets the 7 params (official LUTs are tuned for defaults). |
 | [Library](src/library.html) | Manage **LUTs** — list bundled (with the official **preview thumbnail**) + custom, upload, delete, and **Sync LUTs from GitHub** into the camera's `luts/` (incremental). **Back up / restore presets** (export / import tokens, clear all). |
 
 ## Repo layout

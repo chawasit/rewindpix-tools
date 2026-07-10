@@ -178,6 +178,24 @@
   $("setRoll").onclick = () => setRoll(parseInt($("rollN").value, 10));
   document.querySelectorAll("[data-roll]").forEach((b) => { b.onclick = () => { $("rollN").value = b.dataset.roll; setRoll(parseInt(b.dataset.roll, 10)); }; });
 
+  // ---- camera clock (cmd 3005 date + 3006 time; the official app never sets it) ----
+  const clkD = $("clockDate"), clkT = $("clockTime");
+  const pad2 = (n) => String(n).padStart(2, "0");
+  function fillClockNow() { const d = new Date(); clkD.value = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); clkT.value = pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds()); }
+  fillClockNow();
+  $("clockNow").onclick = async () => {
+    msg("Setting camera clock to this device's time…", "wait");
+    try { const r = await RP.setClock(); fillClockNow(); msg(r.ok ? ("Camera clock set to " + r.date + " " + r.time + " — new photos use it.") : "Sent (unconfirmed) — take a photo to check the stamp.", r.ok ? "ok" : "err"); }
+    catch (e) { msg("Set clock failed: " + e.message + " — join the camera's WiFi.", "err"); }
+  };
+  $("clockSet").onclick = async () => {
+    const d = clkD.value, t = clkT.value.length === 5 ? clkT.value + ":00" : clkT.value;
+    if (!d || !t) { msg("Enter both a date and a time.", "err"); return; }
+    msg("Setting camera clock → " + d + " " + t + "…", "wait");
+    try { const dr = await RP.setDate(d); const tr = await RP.setTime(t); const ok = RP.ackOk(dr) && RP.ackOk(tr); msg(ok ? ("Camera clock set to " + d + " " + t + ".") : "Sent (unconfirmed) — take a photo to check.", ok ? "ok" : "err"); }
+    catch (e) { msg("Set clock failed: " + e.message, "err"); }
+  };
+
   // ---- preset collection ----
   const CKEY = "rp_presets";
   const load = () => JSON.parse(localStorage.getItem(CKEY) || "[]");

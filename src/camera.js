@@ -74,6 +74,18 @@
   RP.setMaxPhotos = (n) => RP.cmd(8004, { par: n });
   RP.deleteFile = (fpath) => RP.cmd(4003, { str: fpath });   // NVTIPC DELETE_FILE; str = full A:\ path
 
+  /* Set the camera RTC over WiFi (the official app never does this; the camera has no clock menu).
+   * cmd=3005 sets the DATE and zeroes time-of-day, so cmd=3006 (time) MUST follow. Confirmed live. */
+  RP.setDate = (ymd) => RP.cmd(3005, { str: ymd });   // "YYYY-MM-DD"
+  RP.setTime = (hms) => RP.cmd(3006, { str: hms });   // "HH:MM:SS"
+  RP.setClock = async (d = new Date()) => {
+    const p = (n) => String(n).padStart(2, "0");
+    const date = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+    const time = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+    const dr = await RP.setDate(date); const tr = await RP.setTime(time);   // order matters (3005 then 3006)
+    return { date, time, ok: RP.ackOk(dr) && RP.ackOk(tr) };
+  };
+
   /* Write a developed JPEG back to the camera under DCIM/Developed_Photos, via the camera's HFS
    * multipart form (field `fileupload1`, file part FIRST — matches the on-device form; the folder
    * auto-creates). Verified live: the file lands with the correct size in the cmd=3015 catalog.

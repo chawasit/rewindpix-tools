@@ -38,7 +38,7 @@
     let nameEl = null, ovr = null;
     if (hasName) {
       nameEl = document.createElement("input"); nameEl.className = "name"; nameEl.maxLength = 10; nameEl.placeholder = "NAME";
-      nameEl.oninput = () => { nameEl.value = nameEl.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 10); };
+      nameEl.oninput = () => { nameEl.value = nameEl.value.toUpperCase().replace(/[^A-Z0-9_. -]/g, "").slice(0, 10); };
       hd.appendChild(nameEl);
     } else if (overridable) {
       const lab = document.createElement("label"); lab.style.cssText = "font-size:.74rem;color:#9aa4af;display:flex;gap:5px;align-items:center";
@@ -74,7 +74,7 @@
 
   const film = [0, 1, 2].map((i) => makeSlot($("filmSlots"), "Film C" + (i + 1), true));
   const incam = [0, 1, 2].map((i) => makeSlot($("incamSlots"), "In-cam C" + (i + 1), false, true));
-  film.forEach((s, i) => s.set(["GLVIVID", "GLEXP", "BWHC"][i], DEFAULTS));
+  film.forEach((s) => s.set("STD. FILM", DEFAULTS));
   incam.forEach((s) => s.set(null, UNSET.slice()));
   preview(DEFAULTS);
 

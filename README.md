@@ -10,7 +10,10 @@ Home Screen** (manifest + icons). The repo is source only; there's no hosted sit
 **One-file build:** [`rewindpix.html`](rewindpix.html) is the whole app in a **single self-contained file**
 (all 4 views + CSS/JS/icons + a curated ~3.4 MB LUT subset inlined) — download it and open it, no folder
 needed. Develop works standalone (inlined LUTs + upload); with a `luts/` folder beside it (or on the camera
-SD) it loads all 36 LUTs and every camera feature. Rebuild it with `python build.py`.
+SD) it loads all 36 LUTs and every camera feature. Rebuild it with `python build.py`. Installed in a camera
+**subfolder** (`A:\RewindPix\`), the header **⟳ Update** fetches the latest `rewindpix.html` from GitHub and
+rewrites itself on the SD (needs internet + the camera's WiFi at once — e.g. a phone on cellular; root-level
+installs can't self-update since the camera drops root uploads).
 
 > ⚠️ **Unofficial — use at your own risk.** These are community, reverse-engineered tools, **not**
 > affiliated with or endorsed by the RewindPix vendor. They talk to the camera's undocumented local API.

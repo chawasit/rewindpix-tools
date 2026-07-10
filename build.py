@@ -112,6 +112,7 @@ doc = f"""<!doctype html>
   <div class="status-bar" id="status"></div>
   <span class="spacer"></span>
   <nav id="nav"><a href="#gallery">Gallery</a> · <a href="#develop">Develop</a> · <a href="#presets">Presets</a> · <a href="#roll">Roll size</a></nav>
+  <button id="rp-update" title="Update the app from the GitHub repo (needs internet + camera WiFi)" style="margin-left:12px">⟳ Update</button>
 </header>
 <main id="app"></main>
 
@@ -131,6 +132,26 @@ function show(v) {{
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + v));
 }}
 function route() {{ let v = (location.hash.replace(/^#/, "").split("?")[0]) || "gallery"; if (!VIEWS.includes(v)) v = "gallery"; show(v); }}
+async function rpUpdate() {{
+  const st = document.getElementById("status");
+  const RAW = "https://raw.githubusercontent.com/chawasit/rewindpix-tools/main/rewindpix.html";
+  const path = decodeURIComponent(location.pathname);
+  const dir = path.slice(0, path.lastIndexOf("/") + 1);
+  const file = path.slice(path.lastIndexOf("/") + 1) || "rewindpix.html";
+  if (dir === "/" && location.hostname === "192.168.1.254") {{ st.textContent = "Update needs the app in a SUBFOLDER (e.g. /RewindPix/) — the camera drops root uploads."; return; }}
+  try {{
+    st.textContent = "Update: fetching latest from GitHub…";
+    const res = await fetch(RAW + "?t=" + Date.now(), {{ cache: "no-store" }});
+    if (!res.ok) throw new Error("GitHub HTTP " + res.status);
+    const blob = await res.blob();
+    if (blob.size < 200000) throw new Error("downloaded file too small (" + blob.size + " B)");
+    st.textContent = "Update: uploading " + (blob.size / 1048576).toFixed(1) + " MB to the camera…";
+    const form = new FormData(); form.append("fileupload1", blob, file); form.append("upbtn", "Upload files");
+    await fetch(dir, {{ method: "POST", body: form, cache: "no-store" }});
+    st.textContent = "Updated \\u2713 (" + file + ") — reloading…"; setTimeout(() => location.reload(), 1200);
+  }} catch (e) {{ st.textContent = "Update failed: " + e.message + " — need internet + the camera's WiFi at the same time."; }}
+}}
+document.getElementById("rp-update").onclick = rpUpdate;
 addEventListener("hashchange", route); route();
 </script>
 </body>

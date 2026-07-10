@@ -52,3 +52,19 @@ input[type=number], input[type=text] {
 .cell .new { position: absolute; top: 6px; left: 6px; background: #2f6feb; color: #fff; font-size: .66rem; padding: 2px 6px; border-radius: 6px; }
 .cell a.dl { color: #6ea8fe; text-decoration: none; }
 .caution { margin-top: 24px; color: #7b848f; font-size: .78rem; border-top: 1px solid #1e232a; padding-top: 12px; }
+
+/* fullscreen photo viewer (mobile lightbox) */
+.viewer { position: fixed; inset: 0; z-index: 60; background: #000; display: none; flex-direction: column; }
+.viewer.open { display: flex; }
+.viewer .v-top { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #e6e8eb; font-size: .85rem; }
+.viewer .v-top .v-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer .v-top .v-count { color: #9aa4af; font-variant-numeric: tabular-nums; }
+.viewer .v-top .v-x { background: none; border: none; color: #e6e8eb; font-size: 1.5rem; padding: 2px 10px; cursor: pointer; }
+.viewer .v-stage { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.viewer .v-stage img { max-width: 100%; max-height: 100%; object-fit: contain; -webkit-user-drag: none; user-select: none; }
+.viewer .v-spin { position: absolute; color: #9aa4af; font-size: .85rem; }
+.viewer .v-nav { position: absolute; top: 0; bottom: 0; width: 30%; border: none; background: none; color: rgba(255,255,255,.55); font-size: 2.4rem; cursor: pointer; display: flex; align-items: center; }
+.viewer .v-prev { left: 0; justify-content: flex-start; padding-left: 12px; }
+.viewer .v-next { right: 0; justify-content: flex-end; padding-right: 12px; }
+.viewer .v-actions { display: flex; gap: 10px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+.viewer .v-actions button { flex: 1; padding: 14px; font-size: 1rem; border-radius: 12px; }

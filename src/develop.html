@@ -22,6 +22,11 @@
   .panel input[type=range]{ width:100%; }
   .panel select{ width:100%; padding:9px; border-radius:9px; border:1px solid #2a2f37; background:#14181d; color:#e6e8eb; }
   .filebtn{ display:inline-block; }
+  #preview { position: relative; }
+  .pv { position: relative; }
+  .busy { position:absolute; inset:0; display:none; flex-direction:column; gap:12px; align-items:center; justify-content:center; background:rgba(10,12,15,.8); border-radius:10px; color:#cfd4da; font-size:.9rem; z-index:3; }
+  .busy .spin { width:34px; height:34px; border:3px solid #2a2f37; border-top-color:#2f6feb; border-radius:50%; animation:rpspin .8s linear infinite; }
+  @keyframes rpspin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -45,10 +50,12 @@
   </div>
   <div class="msg" id="msg"></div>
   <div class="dev-wrap">
-    <div id="preview"><div style="padding:40px;color:#7b848f;text-align:center">Choose a photo to develop.</div></div>
+    <div class="pv"><div id="preview"><div style="padding:40px;color:#7b848f;text-align:center">Choose a photo to develop.</div></div><div id="busy" class="busy"><div class="spin"></div><span id="busytxt">Processing…</span></div></div>
     <div class="panel">
       <label>Film look (LUT)</label>
       <select id="lut"><option value="">None (original)</option></select>
+      <label class="filebtn" style="margin-top:8px"><button id="lutupbtn" style="width:100%">＋ Upload LUT (HALD .png)</button>
+        <input id="lutfile" type="file" accept="image/png" hidden></label>
       <div id="sliders"></div>
       <button id="reset" style="margin-top:14px">Reset params</button>
     </div>
@@ -68,6 +75,8 @@
   const params = Object.assign({}, RPDev.DEFAULT_PARAMS);
   let engine, photo = null, lutImg = null;
   function msg(t,k){ const m=$("msg"); m.textContent=t; m.className="msg show "+(k||"wait"); }
+  const paint = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  function busy(on, t){ const b=$("busy"); if(b){ b.style.display = on ? "flex" : "none"; if(t) $("busytxt").textContent=t; } }
 
   // sliders
   $("sliders").innerHTML = FIELDS.map(f =>
@@ -81,11 +90,13 @@
   function preview(){ if(!photo) return; ensureEngine(); const [pw,ph]=previewDims(); engine.render(params,pw,ph); }
 
   async function loadPhoto(src, name){
+    busy(true,"Loading photo…"); await paint();
     try{
       const img = await RPDev.load(src);
       photo = img; ensureEngine(); engine.setPhoto(img); preview();
       $("export").disabled=false; $("savecam").disabled=false; $("photoName").textContent = name||""; msg(img.naturalWidth+"×"+img.naturalHeight+" loaded.","ok");
     }catch(e){ msg("Couldn't load photo: "+e.message,"err"); }
+    finally{ busy(false); }
   }
 
   $("file").onchange = e => { const f=e.target.files[0]; if(!f) return; loadPhoto(URL.createObjectURL(f), f.name); };
@@ -94,12 +105,25 @@
   const lutSrc = {};                       // option name -> resolvable src (data URI or "luts/<file>")
   function addLut(name, src){ if(lutSrc[name]!==undefined) return; lutSrc[name]=src; const o=document.createElement("option"); o.value=name; o.textContent=name; $("lut").appendChild(o); }
   Object.keys(window.RP_LUTS||{}).sort().forEach(n => addLut(n, window.RP_LUTS[n]));
+  RPDev.customLuts.list().forEach(l => addLut(l.name, l.data));    // your uploaded LUTs
   fetch("luts/luts.json").then(r=>r.json()).then(d=>{ d.luts.forEach(l => addLut(l.name, "luts/"+l.file)); }).catch(()=>{});
   $("lut").onchange = async () => {
     const name=$("lut").value;
     if(!name){ lutImg=null; if(engine){ engine.setLut(null); preview(); } return; }
+    busy(true,"Applying LUT…"); await paint();
     try{ lutImg = await RPDev.load(lutSrc[name]); ensureEngine(); engine.setLut(lutImg); preview(); }
     catch(e){ msg("LUT load failed: "+e.message,"err"); }
+    finally{ busy(false); }
+  };
+  $("lutupbtn").onclick = () => $("lutfile").click();
+  $("lutfile").onchange = e => {
+    const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+    r.onload = () => {
+      const name=(f.name.replace(/\.[^.]+$/,"").toUpperCase().replace(/[^A-Z0-9_. -]/g,"").slice(0,16))||"CUSTOM";
+      try{ RPDev.customLuts.add(name, r.result); }catch(err){ msg("Couldn't save LUT: "+err.message,"err"); return; }
+      addLut(name, r.result); $("lut").value=name; $("lut").dispatchEvent(new Event("change")); msg("Added custom LUT: "+name,"ok");
+    };
+    r.readAsDataURL(f); e.target.value="";
   };
 
   function downloadBlob(blob, name){
@@ -136,31 +160,34 @@
     const base=($("photoName").textContent||"photo").replace(/\.[^.]+$/,"").replace(/[^A-Za-z0-9_-]/g,"_");
     const look=($("lut").selectedOptions[0]?.textContent||"orig").replace(/[^A-Za-z0-9_-]/g,"");
     const name=base+"_"+look+".JPG";
-    $("savecam").disabled=true; msg("Rendering + uploading to camera…","wait");
+    $("savecam").disabled=true; busy(true,"Rendering…"); await paint(); msg("Rendering + uploading to camera…","wait");
     try{
       engine.render(params,w,h); const blob=await engine.toBlob("image/jpeg",0.92); preview();
+      busy(true,"Uploading to camera…");
       const res=await RP.uploadDeveloped(name, blob);
       if(res.ok){ msg("Saved to camera → "+res.url+" ("+(res.size/1024).toFixed(0)+" KB on the SD). It re-serves over WiFi after a camera re-index / power-cycle.","ok"); }
       else{ downloadBlob(blob,name); msg("Couldn't confirm the camera write — saved "+name+" to your device instead; copy it into DCIM/Developed_Photos over USB.","err"); }
     }catch(e){ msg("Save to camera failed: "+e.message,"err"); }
-    finally{ $("savecam").disabled=false; }
+    finally{ $("savecam").disabled=false; busy(false); }
   }
   $("savecam").onclick = saveToCamera;
 
   $("export").onclick = async () => {
     if(!photo) return; const [w,h]=engine.size;
-    msg("Rendering full resolution…","wait");
-    engine.render(params, w, h);
-    const blob = await engine.toBlob("image/jpeg", 0.92);
-    const base = ($("photoName").textContent||"photo").replace(/\.[^.]+$/,"");
-    const look = $("lut").selectedOptions[0]?.textContent || "orig";
-    downloadBlob(blob, base+"_"+look+".jpg");
-    preview(); msg("Exported "+w+"×"+h+" JPEG.","ok");
+    busy(true,"Rendering "+w+"×"+h+"…"); await paint();
+    try{
+      engine.render(params, w, h);
+      const blob = await engine.toBlob("image/jpeg", 0.92);
+      const base = ($("photoName").textContent||"photo").replace(/\.[^.]+$/,"");
+      const look = $("lut").selectedOptions[0]?.textContent || "orig";
+      downloadBlob(blob, base+"_"+look+".jpg");
+      preview(); msg("Exported "+w+"×"+h+" JPEG.","ok");
+    } finally { busy(false); }
   };
 
-  // optional: ?photo=<A:\...fpath> to develop a camera photo (same-origin when served by the camera)
-  const q = new URLSearchParams(location.search).get("photo");
-  if(q){ loadPhoto(RP.urlFor(q), q.split("\\").pop()); }
+  // develop a camera photo handed over from the gallery: ?photo= (multi-file) or window.RP_PICK (single-file SPA)
+  const q = new URLSearchParams(location.search).get("photo") || window.RP_PICK;
+  if(q){ window.RP_PICK = null; loadPhoto(RP.urlFor(q), q.split("\\").pop()); }
 })();
 </script>
 </body>

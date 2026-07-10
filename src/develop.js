@@ -96,4 +96,15 @@
     return { canvas: cv, gl, setPhoto, setLut, render, toBlob,
       get size() { return [photoW, photoH]; } };
   };
+
+  /* User-uploaded LUTs: name -> data URI, persisted in localStorage (best-effort; small HALD PNGs). */
+  const CK = "rp_custom_luts";
+  RPDev.customLuts = {
+    list() { try { const o = JSON.parse(localStorage.getItem(CK) || "{}"); return Object.keys(o).sort().map((name) => ({ name, data: o[name] })); } catch (e) { return []; } },
+    add(name, dataUri) {
+      const o = JSON.parse(localStorage.getItem(CK) || "{}"); o[name] = dataUri;
+      try { localStorage.setItem(CK, JSON.stringify(o)); } catch (e) { throw new Error("storage full — remove a LUT in Library"); }
+    },
+    remove(name) { const o = JSON.parse(localStorage.getItem(CK) || "{}"); delete o[name]; localStorage.setItem(CK, JSON.stringify(o)); },
+  };
 })();

@@ -60,6 +60,35 @@
     finally { btn.disabled = false; btn.textContent = prev; }
   }
 
+  // ---- fullscreen mobile photo viewer (lightbox) ----
+  let vFiles = [], vIdx = 0, viewerEl = null, vImg, vName, vCount, vSpin;
+  function buildViewer() {
+    if (viewerEl) return viewerEl;
+    const old = document.getElementById("rp-viewer"); if (old) old.remove();
+    const v = document.createElement("div"); v.className = "viewer"; v.id = "rp-viewer";
+    v.innerHTML =
+      '<div class="v-top"><span class="v-name"></span><span class="v-count"></span><button class="v-x" aria-label="Close">✕</button></div>' +
+      '<div class="v-stage"><span class="v-spin">Loading…</span><img alt=""><button class="v-nav v-prev" aria-label="Previous">‹</button><button class="v-nav v-next" aria-label="Next">›</button></div>' +
+      '<div class="v-actions"><button class="v-dev primary">Develop</button><button class="v-dl">Download ⤓</button></div>';
+    document.body.appendChild(v);
+    viewerEl = v; vImg = v.querySelector("img"); vName = v.querySelector(".v-name"); vCount = v.querySelector(".v-count"); vSpin = v.querySelector(".v-spin");
+    vImg.onload = () => { vSpin.style.display = "none"; }; vImg.onerror = () => { vSpin.textContent = "Failed to load"; };
+    v.querySelector(".v-x").onclick = closeViewer;
+    v.querySelector(".v-prev").onclick = () => vStep(-1);
+    v.querySelector(".v-next").onclick = () => vStep(1);
+    v.querySelector(".v-dev").onclick = () => { const f = vFiles[vIdx]; closeViewer(); if (window.RP_SPA) { window.RP_PICK = f.fpath; location.hash = "#develop"; } else location.href = "develop.html?photo=" + encodeURIComponent(f.fpath); };
+    v.querySelector(".v-dl").onclick = (e) => download(vFiles[vIdx].fpath, vFiles[vIdx].name, e.currentTarget);
+    let x0 = null, y0 = null; const stage = v.querySelector(".v-stage");
+    stage.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    stage.addEventListener("touchend", (e) => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; if (Math.abs(dy) > 90 && Math.abs(dy) > Math.abs(dx)) closeViewer(); else if (Math.abs(dx) > 45) vStep(dx < 0 ? 1 : -1); x0 = y0 = null; }, { passive: true });
+    return v;
+  }
+  function vKey(e) { if (e.key === "Escape") closeViewer(); else if (e.key === "ArrowLeft") vStep(-1); else if (e.key === "ArrowRight") vStep(1); }
+  function vShow() { const f = vFiles[vIdx]; vSpin.style.display = "block"; vSpin.textContent = "Loading…"; vImg.src = RP.urlFor(f.fpath); vName.textContent = f.name; vCount.textContent = (vIdx + 1) + " / " + vFiles.length; }
+  function vStep(d) { vIdx = (vIdx + d + vFiles.length) % vFiles.length; vShow(); }
+  function openViewer(files, i) { buildViewer(); vFiles = files; vIdx = i; vShow(); viewerEl.classList.add("open"); document.addEventListener("keydown", vKey); }
+  function closeViewer() { if (viewerEl) viewerEl.classList.remove("open"); document.removeEventListener("keydown", vKey); }
+
   function renderGallery(files) {
     const seen = RP.seen();
     const syncable = RP.syncableFiles(files);
@@ -77,19 +106,18 @@
       title.textContent = folder + "  ·  " + items.length + " photos"; galleryEl.appendChild(title);
 
       const grid = document.createElement("div"); grid.className = "grid";
-      for (const f of items) {
+      for (let idx = 0; idx < items.length; idx++) {
+        const f = items[idx];
         const isNew = !seen.has(f.fpath); if (isNew) newCount++;
-        const cell = document.createElement("div"); cell.className = "cell";
+        const cell = document.createElement("div"); cell.className = "cell"; cell.tabIndex = 0; cell.style.cursor = "pointer";
         const img = document.createElement("img"); img.dataset.src = RP.urlFor(f.fpath); img.alt = f.name; img.loading = "lazy";
         cell.appendChild(img); io.observe(img);
         if (isNew) { const b = document.createElement("span"); b.className = "new"; b.textContent = "NEW"; cell.appendChild(b); }
         const cap = document.createElement("div"); cap.className = "cap";
         const nm = document.createElement("span"); nm.className = "name"; nm.textContent = f.name; nm.title = f.name + " · " + fmtBytes(f.size);
-        const dl = document.createElement("button"); dl.className = "dl-btn"; dl.textContent = "⤓"; dl.title = "Download";
-        dl.style.cssText = "padding:2px 8px;font-size:.8rem"; dl.onclick = () => download(f.fpath, f.name, dl);
-        const dev = document.createElement("a"); dev.className = "dl-btn"; dev.textContent = "Develop";
-        dev.style.cssText = "padding:2px 8px;font-size:.8rem;text-decoration:none"; dev.href = window.RP_SPA ? "#develop" : ("develop.html?photo=" + encodeURIComponent(f.fpath));
-        cap.appendChild(nm); cap.appendChild(dev); cap.appendChild(dl); cell.appendChild(cap); grid.appendChild(cell);
+        cap.appendChild(nm); cell.appendChild(cap); grid.appendChild(cell);
+        const openThis = ((arr, i) => () => openViewer(arr, i))(items, idx);
+        cell.onclick = openThis; cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openThis(); } };
       }
       galleryEl.appendChild(grid);
     }

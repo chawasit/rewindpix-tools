@@ -35,7 +35,7 @@
   <h1>RewindPix · Presets</h1>
   <div class="status-bar" id="status">not connected</div>
   <span class="spacer"></span>
-  <nav><a href="index.html">Gallery</a><a href="develop.html">Develop</a><a href="set-roll-size.html">Roll size</a></nav>
+  <nav><a href="index.html">Gallery</a><a href="develop.html">Develop</a><a href="library.html">Library</a></nav>
 </header>
 <main>
   <div class="row">
@@ -58,16 +58,24 @@
     </div>
   </div>
 
+  <h2 style="margin-top:24px;font-size:1rem">Roll size <span style="color:#7b848f;font-weight:400;font-size:.8rem">— frame budget (max photos)</span></h2>
+  <div class="row">
+    <input id="rollN" type="number" min="0" step="1" value="99" style="width:90px" aria-label="Max photos">
+    <button class="primary" id="setRoll">Set roll size</button>
+    <button data-roll="0">0 (clear)</button>
+    <button data-roll="24">24</button>
+    <button data-roll="36">36</button>
+    <button data-roll="99">99</button>
+    <span style="color:#9aa4af;font-size:.82rem"><code>cmd=8004</code>; <code>0</code> clears the roll</span>
+  </div>
+
   <h2 style="margin-top:24px;font-size:1rem">Preset collection</h2>
   <div class="row">
     <select id="saveFrom"></select>
     <input id="saveName" type="text" placeholder="preset name" style="width:150px">
     <button id="save">Save preset</button>
-    <button id="exportAll">Export all</button>
-    <button id="importBtn">Import</button>
   </div>
   <div id="coll"></div>
-  <textarea id="io" rows="3" placeholder="Import: paste tokens (RWP1|NAME|LUM:CON:RG:GG:BG:HUE:SAT) or exported JSON here, then Import." style="display:none"></textarea>
 
   <p class="caution">Unofficial · reverse-engineered · use at your own risk. Applying writes to the camera's filter slots (`8002/8012…`, `8006…`). Open from the camera's WiFi to apply.</p>
 </main>

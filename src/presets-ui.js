@@ -87,6 +87,7 @@
       for (let i = 0; i < 3; i++) film[i].set(names[i], await RP.getParams(RP.FILM.get[i]));
       for (let i = 0; i < 3; i++) incam[i].set(null, await RP.getParams(RP.INCAM.get[i]));
       preview(film[0].get().params);
+      try { const st = await RP.status(); if (st.maxPhotos != null) $("rollN").value = st.maxPhotos; } catch (e) {}
       msg("Loaded current film + in-camera slots from the camera.", "ok");
     } catch (e) { $("status").innerHTML = "<span class='err'>●</span> not reachable"; msg("Load failed: " + e.message + " — join the camera's WiFi.", "err"); }
   };
@@ -103,13 +104,21 @@
     catch (e) { msg("Apply failed: " + e.message, "err"); }
   };
 
+  // ---- roll size (merged from the old Roll size page) ----
+  async function setRoll(n) {
+    if (!Number.isInteger(n) || n < 0) { msg("Enter a whole number ≥ 0.", "err"); return; }
+    msg("Setting roll size → " + n + "…", "wait");
+    try { const xml = await RP.setMaxPhotos(n); if (!RP.ackOk(xml)) throw new Error("camera rejected (status " + RP.tag(xml, "Status") + ")");
+      msg("Roll size set → " + n + (n === 0 ? "  (roll cleared)" : "") + ". Verify on the camera.", "ok"); }
+    catch (e) { msg("Set roll failed: " + e.message, "err"); }
+  }
+  $("setRoll").onclick = () => setRoll(parseInt($("rollN").value, 10));
+  document.querySelectorAll("[data-roll]").forEach((b) => { b.onclick = () => { $("rollN").value = b.dataset.roll; setRoll(parseInt(b.dataset.roll, 10)); }; });
+
   // ---- preset collection ----
   const CKEY = "rp_presets";
   const load = () => JSON.parse(localStorage.getItem(CKEY) || "[]");
   const save = (a) => localStorage.setItem(CKEY, JSON.stringify(a));
-  const token = (p) => "RWP1|" + p.name + "|" + p.params.join(":");
-  const parseToken = (line) => { const m = line.trim().match(/^RWP1\|([^|]{1,20})\|([\-0-9:]+)$/); if (!m) return null;
-    const params = m[2].split(":").map(Number); if (params.length !== 7 || params.some(isNaN)) return null; return { name: m[1], params }; };
 
   const SLOTS = [["Film C1", (p) => film[0].set(film[0].get().name, p)], ["Film C2", (p) => film[1].set(film[1].get().name, p)],
     ["Film C3", (p) => film[2].set(film[2].get().name, p)], ["In-cam C1", (p) => incam[0].set(null, p)],
@@ -137,15 +146,6 @@
     const name = ($("saveName").value || src.name || "PRESET").toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 10) || "PRESET";
     const a = load(); const i = a.findIndex((p) => p.name === name); const preset = { name, params: src.params };
     if (i >= 0) a[i] = preset; else a.push(preset); save(a); renderColl(); $("saveName").value = ""; msg("Saved preset “" + name + "”.", "ok");
-  };
-  $("exportAll").onclick = () => { const io = $("io"); io.style.display = "block"; io.value = load().map(token).join("\n"); io.select(); msg("Exported " + load().length + " presets as tokens (copy them, or import elsewhere).", "ok"); };
-  $("importBtn").onclick = () => {
-    const io = $("io"); if (io.style.display === "none") { io.style.display = "block"; io.focus(); return; }
-    let added = 0; const a = load(); const raw = io.value.trim();
-    let items = [];
-    try { const j = JSON.parse(raw); if (Array.isArray(j)) items = j; } catch (e) { items = raw.split("\n").map(parseToken).filter(Boolean); }
-    items.forEach((p) => { if (p && p.name && Array.isArray(p.params) && p.params.length === 7) { const i = a.findIndex((q) => q.name === p.name); if (i >= 0) a[i] = p; else a.push(p); added++; } });
-    save(a); renderColl(); msg(added ? ("Imported " + added + " preset(s).") : "Nothing valid to import.", added ? "ok" : "err");
   };
   renderColl();
 })();

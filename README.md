@@ -8,12 +8,12 @@ the camera itself over plain HTTP** (not HTTPS — see below). Installable as a 
 Home Screen** (manifest + icons). The repo is source only; there's no hosted site.
 
 **One-file build:** [`rewindpix.html`](rewindpix.html) is the whole app in a **single self-contained file**
-(all 4 views + CSS/JS/icons + a curated ~3.4 MB LUT subset inlined) — download it and open it, no folder
-needed. Develop works standalone (inlined LUTs + upload); with a `luts/` folder beside it (or on the camera
-SD) it loads all 36 LUTs and every camera feature. Rebuild it with `python build.py`. Installed in a camera
-**subfolder** (`A:\RewindPix\`), the header **⟳ Update** fetches the latest `rewindpix.html` from GitHub and
-rewrites itself on the SD (needs internet + the camera's WiFi at once — e.g. a phone on cellular; root-level
-installs can't self-update since the camera drops root uploads).
+(~1 MB) — the 4 tabs + CSS/JS/icons inlined, plus **3 fallback LUTs** so it works standalone. Open it and
+go, no folder needed. With a `luts/` folder beside it (or on the camera SD) Develop gets all **36 LUTs**;
+custom LUTs upload from Develop or Library. Rebuild with `python build.py`. Installed in a camera
+**subfolder** (`A:\RewindPix\`), the header **⟳ Update** self-updates from GitHub, and **Library → Sync
+LUTs** tops up the `luts/` folder (both need internet + the camera's WiFi at once — e.g. a phone on
+cellular; root-level installs can't self-update since the camera drops root uploads).
 
 > ⚠️ **Unofficial — use at your own risk.** These are community, reverse-engineered tools, **not**
 > affiliated with or endorsed by the RewindPix vendor. They talk to the camera's undocumented local API.
@@ -23,15 +23,15 @@ installs can't self-update since the camera drops root uploads).
 
 | Tool | What it does |
 |------|--------------|
-| **[Gallery + Sync](src/index.html)** — `src/index.html` | The app home. Connect to the camera, browse photos by folder, see what's new since last sync, download shots individually, **download the whole roll as one ZIP** (fetched serialized, packaged in-browser), or send a photo to **Develop**. Serialized single-client client; skips the `._FILM` duplicate. |
-| [Develop](src/develop.html) | Apply any of the **36 bundled film HALD-CLUT LUTs** + 7 params (luminance, contrast, RGB gains, hue, saturation) to a photo in-browser (WebGL), preview live, and export a full-resolution JPEG. Load a photo by **picking one from the camera**, from the gallery (`?photo=`), or a file upload. **Save to camera** writes the result to `DCIM/Developed_Photos` (folder auto-created; verified live via the `cmd=3015` catalog); the camera re-serves it over WiFi only after a re-index / power-cycle, and it falls back to a device download if the write can't be confirmed. |
-| [Presets](src/presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (params only, with an override / keep-baked toggle), apply them to the camera, and save / import / export a preset collection. |
-| [Set roll size](src/set-roll-size.html) | Sets the frame budget (max photos) to any number (`cmd=8004`). Default 99; `0` clears the roll. |
+| **[Gallery + Sync](src/index.html)** — `src/index.html` | The app home. Connect, browse photos by folder, see what's new since last sync. **Tap a photo → fullscreen viewer** (swipe / arrows, Develop or Download). **Download the whole roll as one ZIP** (serialized, packaged in-browser). Single-client client; skips the `._FILM` duplicate. |
+| [Develop](src/develop.html) | Apply a **film HALD-CLUT LUT** + 7 params (luminance, contrast, RGB gains, hue, saturation) in-browser (WebGL) with a **live processing indicator**, and export a full-res JPEG. Load a photo by **picking from the camera**, the gallery, or file upload; **upload your own LUT** (HALD `.png`). **Save to camera** writes to `DCIM/Developed_Photos` (verified via the `cmd=3015` catalog; falls back to a device download). |
+| [Presets](src/presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (override / keep-baked), **set the roll size** (frame budget), apply to the camera, and save presets. |
+| [Library](src/library.html) | Manage **LUTs** — list bundled + custom, upload, delete, and **Sync LUTs from GitHub** into the camera's `luts/` (incremental). **Back up / restore presets** (export / import tokens, clear all). |
 
 ## Repo layout
 
 - **`rewindpix.html`** — the built, shippable **single file** (open it, or install it on the camera SD).
-- **`src/`** — multi-file source: the 4 pages + JS (`camera.js`, `app.js`, `zip.js`, `develop.js`, `presets-ui.js`, `roll-size.js`), `style.css`, icons, `manifest.webmanifest`, and `luts/` (36 HALD-CLUT PNGs).
+- **`src/`** — multi-file source: the 4 pages (`index`/`develop`/`presets`/`library`.html) + JS (`camera.js`, `app.js`, `zip.js`, `develop.js`, `presets-ui.js`, `library.js`), `style.css`, icons, `manifest.webmanifest`, and `luts/` (36 HALD-CLUT PNGs).
 - **`build.py`** — bundles `src/` → `rewindpix.html`. **`dev-server.py`** — local static server + camera proxy (`--mock` = no camera).
 
 ## How to use
@@ -56,7 +56,7 @@ over `file://` or `http://` instead (no HTTPS = no block). Pick one:
 - **Download & open** — grab **[`rewindpix.html`](rewindpix.html)** (the single file) and open it over
   `file://` (desktop). Develop works standalone; other camera features need the camera served same-origin — use an option below.
 - **Serve over HTTP** — from the folder run `python -m http.server 8000`, then open
-  `http://localhost:8000/src/set-roll-size.html` (or `http://<computer-ip>:8000/…` from another device on the WiFi).
+  `http://localhost:8000/src/index.html` (or `http://<computer-ip>:8000/…` from another device on the WiFi).
 - **Serve from the camera's SD card** — the camera's `hfs` server serves `A:\` over HTTP, so a `.html`
   copied onto the card loads at `http://192.168.1.254/…` — **same origin** as the API (no mixed content,
   no CORS; responses even readable). *Untested but promising.*

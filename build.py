@@ -15,7 +15,6 @@ from pathlib import Path
 D = Path(__file__).parent
 SRC = D / "src"                   # multi-file app source lives here
 OUT = D / "rewindpix.html"
-LUT_BUDGET = 3_600_000            # ~3.6 MB of PNG -> ~4.8 MB base64 inlined
 
 
 def read(name):
@@ -53,34 +52,35 @@ def js_str(s):
 
 
 # ---- pages ----
-idx, dev, pre, roll = read("index.html"), read("develop.html"), read("presets.html"), read("set-roll-size.html")
+idx, dev, pre, lib = read("index.html"), read("develop.html"), read("presets.html"), read("library.html")
 
 TPL = {
     "gallery": main_inner(idx),
     "develop": main_inner(dev),
     "presets": main_inner(pre),
-    "roll": main_inner(roll),
+    "library": main_inner(lib),
 }
 JS = {
     "gallery": read("app.js"),
     "develop": inline_script(dev),
     "presets": read("presets-ui.js"),
-    "roll": read("roll-size.js"),
+    "library": read("library.js"),
 }
 
 # shared, loaded once (union of the pages' <script src=...> libs)
 SHARED = "\n".join(read(f) for f in ("camera.js", "zip.js", "develop.js"))
-CSS = "\n".join([read("style.css"), head_style(dev), head_style(pre)])
+CSS = "\n".join([read("style.css"), head_style(dev), head_style(pre), head_style(lib)])
 
-# ---- curated LUT subset (smallest first, up to the budget) ----
-luts = sorted((SRC / "luts").glob("*.png"), key=lambda p: p.stat().st_size)
+# ---- a few representative LUTs inlined as a fallback so a lone rewindpix.html still has looks;
+# the full 36-set loads from the luts/ folder (camera SD / beside the file) or via Library → Sync LUTs.
+FALLBACK = ["GLVIVID", "BWHC", "C41"]
 picked, total, RP_LUTS = [], 0, {}
-for p in luts:
-    sz = p.stat().st_size
-    if total + sz > LUT_BUDGET:
+for name in FALLBACK:
+    p = SRC / "luts" / (name + ".png")
+    if not p.exists():
         continue
-    RP_LUTS[p.stem] = "data:image/png;base64," + b64(p)
-    picked.append(p.stem); total += sz
+    RP_LUTS[name] = "data:image/png;base64," + b64(p)
+    picked.append(name); total += p.stat().st_size
 
 ICON = b64(SRC / "icon-192.png")
 MANIFEST = base64.b64encode(json.dumps({
@@ -112,7 +112,7 @@ doc = f"""<!doctype html>
   <h1>RewindPix</h1>
   <div class="status-bar" id="status"></div>
   <span class="spacer"></span>
-  <nav id="nav"><a href="#gallery">Gallery</a> · <a href="#develop">Develop</a> · <a href="#presets">Presets</a> · <a href="#roll">Roll size</a></nav>
+  <nav id="nav"><a href="#gallery">Gallery</a> · <a href="#develop">Develop</a> · <a href="#presets">Presets</a> · <a href="#library">Library</a></nav>
   <button id="rp-update" title="Update the app from the GitHub repo (needs internet + camera WiFi)" style="margin-left:12px">⟳ Update</button>
 </header>
 <main id="app"></main>
@@ -122,9 +122,9 @@ doc = f"""<!doctype html>
 {SHARED}
 </script>
 <script>
-const TPL = {{ gallery: {js_str(TPL["gallery"])}, develop: {js_str(TPL["develop"])}, presets: {js_str(TPL["presets"])}, roll: {js_str(TPL["roll"])} }};
-const JS  = {{ gallery: {js_str(JS["gallery"])}, develop: {js_str(JS["develop"])}, presets: {js_str(JS["presets"])}, roll: {js_str(JS["roll"])} }};
-const VIEWS = ["gallery", "develop", "presets", "roll"];
+const TPL = {{ gallery: {js_str(TPL["gallery"])}, develop: {js_str(TPL["develop"])}, presets: {js_str(TPL["presets"])}, library: {js_str(TPL["library"])} }};
+const JS  = {{ gallery: {js_str(JS["gallery"])}, develop: {js_str(JS["develop"])}, presets: {js_str(JS["presets"])}, library: {js_str(JS["library"])} }};
+const VIEWS = ["gallery", "develop", "presets", "library"];
 const appEl = document.getElementById("app");
 function show(v) {{
   appEl.innerHTML = TPL[v];

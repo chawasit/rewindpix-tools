@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library — RewindPix</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12161b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RewindPix">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .coll-item { display:flex; gap:8px; align-items:center; justify-content:space-between; padding:7px 10px; background:#12161b; border:1px solid #1e232a; border-radius:8px; margin:6px 0; font-size:.85rem; }
+  .coll-item .p { color:#7b848f; font-size:.72rem; }
+  #lutList { max-height:340px; overflow:auto; margin-top:8px; }
+  textarea{ width:100%; background:#14181d; color:#e6e8eb; border:1px solid #2a2f37; border-radius:8px; font-family:ui-monospace,Menlo,monospace; font-size:.8rem; padding:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>RewindPix · Library</h1>
+  <span class="spacer"></span>
+  <nav><a href="index.html">Gallery</a><a href="develop.html">Develop</a><a href="presets.html">Presets</a></nav>
+</header>
+<main>
+  <h2 style="font-size:1rem">LUTs <span id="lutCount" style="color:#7b848f;font-weight:400"></span></h2>
+  <div class="row">
+    <button class="primary" id="lutSync">⟳ Sync LUTs from GitHub</button>
+    <label class="filebtn"><button id="lutUp">＋ Upload LUT (.png)</button><input id="lutFile" type="file" accept="image/png" hidden></label>
+  </div>
+  <div class="msg" id="msg"></div>
+  <div id="lutList"></div>
+  <p class="caution" style="border:0;margin-top:6px">Bundled LUTs load from <code>luts/</code>; custom LUTs live in your browser. <b>Sync</b> fetches missing LUTs from GitHub into the camera's <code>luts/</code> — needs internet <b>and</b> the camera's WiFi at once (phone on cellular); the full set is heavy over WiFi, so USB is faster for a first load.</p>
+
+  <h2 style="margin-top:22px;font-size:1rem">Presets backup <span id="presetCount" style="color:#7b848f;font-weight:400"></span></h2>
+  <div class="row">
+    <button id="pExport">Export all</button>
+    <button id="pImport">Import</button>
+    <button id="pClear">Clear all</button>
+  </div>
+  <textarea id="pio" rows="4" placeholder="Import: paste tokens (RWP1|NAME|LUM:CON:RG:GG:BG:HUE:SAT) or exported JSON, then Import." style="display:none"></textarea>
+  <p class="caution">Create + apply presets on the <b>Presets</b> tab; this backs up / restores the whole collection.</p>
+</main>
+<script src="camera.js"></script>
+<script src="develop.js"></script>
+<script src="library.js"></script>
+</body>
+</html>

@@ -23,7 +23,12 @@
   .slot .hd select.lutpick { padding:3px 6px; font-size:.72rem; width:auto; }
   .slot .hd button.lutreset { padding:3px 6px; font-size:.72rem; margin-left:auto; }
   .slot .exwrap { margin-top:10px; }
-  .slot .exlabel { font-size:.68rem; color:#7b848f; display:block; margin-bottom:3px; }
+  .slot .exhd { display:flex; align-items:baseline; gap:8px; margin-bottom:4px; }
+  .slot .exlabel { font-size:.68rem; color:#7b848f; }
+  .slot .exstatus { font-size:.68rem; color:#7b848f; }
+  .slot .exstatus.load { color:#cfd4da; }
+  .slot .exstatus.ok { color:#9aa4af; }
+  .slot .exstatus.err { color:#ffb4b4; }
   .slot canvas.ex { width:100%; height:auto; border:1px solid #1e232a; border-radius:6px; display:block; }
   .slot .f { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:.78rem; color:#9aa4af; }
   .slot .f label { width:74px; }

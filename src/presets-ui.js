@@ -67,21 +67,32 @@
       row.appendChild(r); row.appendChild(v); el.appendChild(row); return r;
     });
     // per-slot example: the color chart with this slot's params (+ its LUT, when the name matches one)
-    const exWrap = document.createElement("div"); exWrap.className = "exwrap"; exWrap.innerHTML = '<span class="exlabel">Example</span>';
+    const exWrap = document.createElement("div"); exWrap.className = "exwrap";
+    exWrap.innerHTML = '<div class="exhd"><span class="exlabel">Example</span><span class="exstatus" aria-live="polite"></span></div>';
+    const exStatus = exWrap.querySelector(".exstatus");
     const exCanvas = document.createElement("canvas"); exCanvas.className = "ex"; exCanvas.width = 300; exCanvas.height = 50;
     exWrap.appendChild(exCanvas); el.appendChild(exWrap);
-    let exEng = null, exLut = null, exLutImg = null;
+    let exEng = null, exLut = null, exLutImg = null, exSeq = 0;
+    function setExStatus(t, cls) { exStatus.textContent = t; exStatus.className = "exstatus" + (cls ? " " + cls : ""); }
     async function renderExample() {
+      const seq = ++exSeq;
       try {
         const raw = get().params, pobj = {};
         FIELDS.forEach((f, i) => (pobj[f.k] = raw[i] === -255 ? f.def : raw[i]));
         if (!exEng) { exEng = RPDev.createEngine(); exEng.setPhoto(chartSrc); }
         const nm = (nameEl && nameEl.value || "").toUpperCase(), src = lutSrcMap[nm];
-        if (src) { if (exLut !== nm) { exLutImg = await RPDev.load(src).catch(() => null); exLut = nm; } if (exLutImg) exEng.setLut(exLutImg); }
-        else if (exLut) { exLut = null; exLutImg = null; try { exEng.gl.getExtension("WEBGL_lose_context") && exEng.gl.getExtension("WEBGL_lose_context").loseContext(); } catch (e) {} exEng = RPDev.createEngine(); exEng.setPhoto(chartSrc); }
+        if (src) {
+          if (exLut !== nm) { setExStatus("loading " + nm + "…", "load"); exLutImg = await RPDev.load(src).catch(() => null); exLut = nm; if (seq !== exSeq) return; }
+          if (exLutImg) exEng.setLut(exLutImg);
+        } else if (exLut) {
+          exLut = null; exLutImg = null;
+          try { const lc = exEng.gl.getExtension("WEBGL_lose_context"); lc && lc.loseContext(); } catch (e) {}
+          exEng = RPDev.createEngine(); exEng.setPhoto(chartSrc);
+        }
         exEng.render(pobj, exCanvas.width, exCanvas.height);
         const cx = exCanvas.getContext("2d"); cx.clearRect(0, 0, exCanvas.width, exCanvas.height); cx.drawImage(exEng.canvas, 0, 0, exCanvas.width, exCanvas.height);
-      } catch (e) { /* WebGL optional */ }
+        setExStatus(src ? (exLutImg ? nm + " ✓" : "LUT failed") : "params only", src ? (exLutImg ? "ok" : "err") : "");
+      } catch (e) { setExStatus("preview unavailable", "err"); }
     }
     function setDisabled(d) { sliders.forEach((s) => (s.disabled = d)); el.style.opacity = d ? ".6" : "1"; }
     if (ovr) ovr.onchange = () => { setDisabled(!ovr.checked); preview(get().params); renderExample(); };

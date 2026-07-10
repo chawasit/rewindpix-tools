@@ -14,6 +14,7 @@ Everything here is static HTML + vanilla JS, meant to be **run locally or self-h
 
 | Tool | What it does |
 |------|--------------|
+| **[Gallery + Sync](index.html)** — `index.html` | Connect to the camera, browse photos by folder, see what's new since last sync, download shots. Serialized single-client client; skips the `._FILM` duplicate. |
 | [Set roll size](set-roll-size.html) | Sets the frame budget (max photos) to any number (`cmd=8004`). Default 99; `0` clears the roll. |
 
 ## How to use
@@ -23,6 +24,10 @@ Everything here is static HTML + vanilla JS, meant to be **run locally or self-h
 3. Enter a value and click the action button.
 4. Watch for **success** (green) or **error** (red).
 5. **Disconnect** from the camera WiFi and use the camera as normal.
+
+**Local development:** `python dev-server.py` serves the app **and** proxies the camera so it runs
+same-origin (join the camera's WiFi first); `python dev-server.py --mock` runs it with canned data and
+placeholder photos (no camera needed). In production the camera serves the files itself — no server.
 
 ## Running the tools (no HTTPS)
 

@@ -21,12 +21,21 @@
   <span class="spacer"></span>
 </header>
 <main>
-  <div class="row">
+  <div class="row" id="galtools">
     <button class="primary" id="sync">Sync ↻</button>
+    <button id="select">Select ☑</button>
     <button id="downloadall">Download all (ZIP)</button>
     <button id="reconnect">Reconnect</button>
     <button id="marksynced">Mark all synced</button>
     <button id="clearseen">Reset sync memory</button>
+    <button id="finishroll" title="Delete the current-roll working copies (._FILM) and reset the frame budget">Finish roll</button>
+  </div>
+  <div class="row" id="selbar" style="display:none">
+    <b id="selcount" style="flex:0 0 auto;margin-right:6px">0 selected</b>
+    <button class="primary" id="seldl">Download</button>
+    <button id="selzip">ZIP</button>
+    <button id="selall">Select all</button>
+    <button id="selcancel">Cancel</button>
   </div>
   <div class="msg" id="msg"></div>
   <div id="galControls">
@@ -41,6 +50,7 @@
 </main>
 <script src="camera.js"></script>
 <script src="zip.js"></script>
+<script src="develop.js"></script>
 <script src="app.js"></script>
 <script src="nav.js"></script>
 </body>

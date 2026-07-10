@@ -107,4 +107,14 @@
     },
     remove(name) { const o = JSON.parse(localStorage.getItem(CK) || "{}"); delete o[name]; localStorage.setItem(CK, JSON.stringify(o)); },
   };
+
+  /* Merged LUT catalog {name: src} — inlined RP_LUTS + custom uploads + the luts/ folder manifest.
+   * Used by the gallery's auto-develop (LUT chosen from the filename's film name). */
+  RPDev.lutCatalog = async function () {
+    const cat = {};
+    Object.keys(window.RP_LUTS || {}).forEach((n) => (cat[n] = window.RP_LUTS[n]));
+    RPDev.customLuts.list().forEach((l) => { if (!(l.name in cat)) cat[l.name] = l.data; });
+    try { const d = await fetch("luts/luts.json").then((r) => (r.ok ? r.json() : null)); if (d && d.luts) d.luts.forEach((l) => { if (!(l.name in cat)) cat[l.name] = "luts/" + l.file; }); } catch (e) {}
+    return cat;
+  };
 })();

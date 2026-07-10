@@ -72,6 +72,7 @@
 
   // ---- writes ----
   RP.setMaxPhotos = (n) => RP.cmd(8004, { par: n });
+  RP.deleteFile = (fpath) => RP.cmd(4003, { str: fpath });   // NVTIPC DELETE_FILE; str = full A:\ path
 
   /* Write a developed JPEG back to the camera under DCIM/Developed_Photos, via the camera's HFS
    * multipart form (field `fileupload1`, file part FIRST — matches the on-device form; the folder

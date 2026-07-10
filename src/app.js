@@ -7,12 +7,11 @@
   function clearMsg() { msgEl.className = "msg"; }
 
 
-  // ---- localStorage thumbnail cache (downscaled data URLs; works over plain-HTTP LAN, no secure context) ----
-  const TKEY = (fp) => "thumb:" + fp;
-  function lsGet(fp) { try { return localStorage.getItem(TKEY(fp)); } catch (e) { return null; } }
-  function lsPut(fp, dataUrl) {
-    try { localStorage.setItem(TKEY(fp), dataUrl); }
-    catch (e) { try { Object.keys(localStorage).filter((k) => k.indexOf("thumb:") === 0).forEach((k) => localStorage.removeItem(k)); localStorage.setItem(TKEY(fp), dataUrl); } catch (e2) {} }
+  // ---- localStorage thumbnail cache (downscaled data URLs; raw "thumb:" + developed "dev:" keys) ----
+  function cacheGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function cachePut(key, url) {
+    try { localStorage.setItem(key, url); }
+    catch (e) { try { Object.keys(localStorage).filter((k) => /^(thumb|dev):/.test(k)).forEach((k) => localStorage.removeItem(k)); localStorage.setItem(key, url); } catch (e2) {} }
   }
   async function downscaleURL(blob) {
     let bmp; try { bmp = await createImageBitmap(blob); } catch (e) { return null; }
@@ -26,14 +25,39 @@
   const PAGE = 12;
   let allFiles = [], curFolder = "*", curFilter = "all", shown = PAGE;
   function parseTime(f) { const m = (f.time || "").match(/(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : (f.timecode || 0); }
+  let selectMode = false; const selected = new Set();
+  let _catP = null; const lutCat = () => (_catP || (_catP = (window.RPDev ? RPDev.lutCatalog() : Promise.resolve({}))));
+  const isFilm = (fp) => /[\\/]\._FILM[\\/]/.test(fp);
+  const filmName = (name) => { const m = (name || "").match(/^DCIM\d{8}(.+?)_\d+\.[^.]+$/i); return m ? m[1].toUpperCase() : null; };
+  let _devEng = null;
+  async function developURL(blob, lutSrc) {
+    let photo; try { photo = await createImageBitmap(blob); } catch (e) { return null; }
+    let lut; try { lut = await RPDev.load(lutSrc); } catch (e) { if (photo.close) photo.close(); return null; }
+    try {
+      if (!_devEng) _devEng = RPDev.createEngine();
+      _devEng.setPhoto(photo); _devEng.setLut(lut);
+      const S = 300, k = Math.min(1, S / Math.max(photo.width, photo.height));
+      _devEng.render(RPDev.DEFAULT_PARAMS, Math.max(1, Math.round(photo.width * k)), Math.max(1, Math.round(photo.height * k)));
+      return _devEng.canvas.toDataURL("image/jpeg", 0.7);
+    } catch (e) { return null; } finally { if (photo.close) photo.close(); }
+  }
   // ---- lazy loader → localStorage cache (downscaled data URLs). ONE image at a time; skeleton until ready ----
   let active = 0; const q = [];
   function pump() { while (active < 1 && q.length) { const img = q.shift(); active++; loadThumb(img).finally(() => { active--; pump(); }); } }
   async function loadThumb(img) {
-    const cell = img.parentElement, fp = img.dataset.fp;
+    const cell = img.parentElement, fp = img.dataset.fp, film = isFilm(fp);
+    const fn = film ? filmName(fp.split(/[\\/]/).pop()) : null;
     try {
-      let url = lsGet(fp);
-      if (!url) { const res = await fetch(RP.urlFor(fp), { cache: "force-cache" }); if (!res.ok) throw 0; url = await downscaleURL(await res.blob()); if (!url) throw 0; lsPut(fp, url); }
+      let developed = false, url = fn ? cacheGet("dev:" + fp) : null;
+      if (url) developed = true; else url = cacheGet("thumb:" + fp);
+      if (!url) {
+        const res = await fetch(RP.urlFor(fp), { cache: "force-cache" }); if (!res.ok) throw 0;
+        const blob = await res.blob();
+        if (fn) { const cat = await lutCat(); if (cat[fn]) { url = await developURL(blob, cat[fn]); if (url) { developed = true; cachePut("dev:" + fp, url); } } }
+        if (!url) { url = await downscaleURL(blob); if (url) cachePut("thumb:" + fp, url); }
+        if (!url) throw 0;
+      }
+      if (film && !developed) { const r = document.createElement("span"); r.className = "rawbadge"; r.textContent = "RAW"; cell.appendChild(r); }
       img.onload = () => { cell.classList.remove("loading"); cell.classList.add("ready"); };
       img.onerror = () => { cell.classList.remove("loading"); cell.classList.add("thumb-fail"); };
       img.src = url;
@@ -110,18 +134,23 @@
   function closeViewer() { if (viewerEl) viewerEl.classList.remove("open"); document.removeEventListener("keydown", vKey); }
 
   function filtered() {
-    let list = allFiles.slice();
-    if (curFolder !== "*") list = list.filter((f) => f.folder === curFolder);
+    let list;
+    if (curFolder === "._FILM") list = allFiles.filter((f) => f.folder === "._FILM");
+    else if (curFolder === "*") list = allFiles.filter((f) => f.folder !== "._FILM");
+    else list = allFiles.filter((f) => f.folder === curFolder);
     const now = Date.now(), day = 86400000, win = { today: day, "7d": 7 * day, "30d": 30 * day }[curFilter];
     if (win) list = list.filter((f) => now - parseTime(f) < win);
-    return list.sort((a, b) => b.timecode - a.timecode);
+    return list.slice().sort((a, b) => b.timecode - a.timecode);
   }
   function chip(label, on, fn) { const b = document.createElement("button"); b.className = "chip" + (on ? " on" : ""); b.textContent = label; b.onclick = fn; return b; }
+  function setFolder(f) { curFolder = f; shown = PAGE; renderControls(); renderPage(); }
   function renderControls() {
     const counts = {}; allFiles.forEach((f) => (counts[f.folder] = (counts[f.folder] || 0) + 1));
+    const nonFilm = allFiles.filter((f) => f.folder !== "._FILM").length;
     const fb = $("folderChips"); fb.innerHTML = "";
-    fb.appendChild(chip("All (" + allFiles.length + ")", curFolder === "*", () => { curFolder = "*"; shown = PAGE; renderControls(); renderPage(); }));
-    Object.keys(counts).sort().forEach((n) => fb.appendChild(chip(n + " (" + counts[n] + ")", curFolder === n, () => { curFolder = n; shown = PAGE; renderControls(); renderPage(); })));
+    fb.appendChild(chip("All (" + nonFilm + ")", curFolder === "*", () => setFolder("*")));
+    if (counts["._FILM"]) fb.appendChild(chip("Current film (" + counts["._FILM"] + ")", curFolder === "._FILM", () => setFolder("._FILM")));
+    Object.keys(counts).filter((n) => n !== "._FILM").sort().forEach((n) => fb.appendChild(chip(n + " (" + counts[n] + ")", curFolder === n, () => setFolder(n))));
     const tb = $("timeChips"); tb.innerHTML = "";
     [["all", "All time"], ["today", "Today"], ["7d", "7 days"], ["30d", "30 days"]].forEach(([k, l]) => tb.appendChild(chip(l, curFilter === k, () => { curFilter = k; shown = PAGE; renderControls(); renderPage(); })));
   }
@@ -132,19 +161,20 @@
     const grid = document.createElement("div"); grid.className = "grid";
     list.slice(0, shown).forEach((f, idx) => {
       const cell = document.createElement("div"); cell.className = "cell loading"; cell.tabIndex = 0; cell.style.cursor = "pointer";
+      if (selectMode && selected.has(f.fpath)) cell.classList.add("sel");
       const img = document.createElement("img"); img.dataset.fp = f.fpath; img.alt = f.name;
       cell.appendChild(img); io.observe(img);
       if (!seen.has(f.fpath)) { const b = document.createElement("span"); b.className = "new"; b.textContent = "NEW"; cell.appendChild(b); }
       const cap = document.createElement("div"); cap.className = "cap"; const nm = document.createElement("span"); nm.className = "name"; nm.textContent = f.name; nm.title = f.name + " · " + fmtBytes(f.size);
       cap.appendChild(nm); cell.appendChild(cap); grid.appendChild(cell);
-      cell.onclick = () => openViewer(list, idx);
-      cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openViewer(list, idx); } };
+      cell.onclick = () => { if (selectMode) toggleSel(f, cell); else openViewer(list, idx); };
+      cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cell.onclick(); } };
     });
     galleryEl.appendChild(grid);
     if (list.length > shown) { const more = document.createElement("button"); more.className = "primary"; more.style.cssText = "margin:16px auto 0;display:block"; more.textContent = "Load more (" + (list.length - shown) + ")"; more.onclick = () => { shown += PAGE; renderPage(); }; galleryEl.appendChild(more); }
   }
   function renderGallery(files) {
-    allFiles = (files || []).filter((f) => f.folder && f.folder !== "._FILM");
+    allFiles = (files || []).filter((f) => f.folder);   // include ._FILM (shown under "Current film")
     const seen = RP.seen(); const newCount = allFiles.filter((f) => !seen.has(f.fpath)).length;
     shown = PAGE; renderControls(); renderPage();
     return { total: allFiles.length, newCount };
@@ -180,6 +210,49 @@
   $("marksynced").onclick = () => { RP.markSeen(RP.syncableFiles(lastFiles).map((f) => f.fpath)); renderPage(); msg("Marked all current photos as synced.", "ok"); };
   $("clearseen").onclick = () => { RP.resetSeen(); renderPage(); msg("Sync memory reset — all photos show as NEW again.", "ok"); };
   $("downloadall").onclick = downloadAll;
+
+  // ---- select / download mode: checkboxes, then download individually (or ZIP) ----
+  function refreshSel() { $("selcount").textContent = selected.size + " selected"; }
+  function toggleSel(f, cell) { if (selected.has(f.fpath)) { selected.delete(f.fpath); cell.classList.remove("sel"); } else { selected.add(f.fpath); cell.classList.add("sel"); } refreshSel(); }
+  function exitSelect() { selectMode = false; selected.clear(); document.body.classList.remove("selecting"); $("selbar").style.display = "none"; $("galtools").style.display = "flex"; renderPage(); }
+  $("select").onclick = () => { selectMode = true; selected.clear(); document.body.classList.add("selecting"); $("galtools").style.display = "none"; $("selbar").style.display = "flex"; refreshSel(); renderPage(); };
+  $("selcancel").onclick = exitSelect;
+  $("selall").onclick = () => { filtered().forEach((f) => selected.add(f.fpath)); refreshSel(); renderPage(); };
+  $("seldl").onclick = () => downloadSelected(false);
+  $("selzip").onclick = () => downloadSelected(true);
+  async function downloadSelected(zip) {
+    const files = allFiles.filter((f) => selected.has(f.fpath));
+    if (!files.length) { msg("Nothing selected.", "err"); return; }
+    $("seldl").disabled = $("selzip").disabled = true;
+    try {
+      if (zip) {
+        const entries = [];
+        for (let i = 0; i < files.length; i++) { const f = files[i]; msg("Zipping " + (i + 1) + "/" + files.length + ": " + f.name + "…", "wait"); const blob = await RP.downloadBlob(f.fpath); entries.push({ name: f.folder + "/" + f.name, bytes: new Uint8Array(await blob.arrayBuffer()) }); }
+        const url = URL.createObjectURL(RPZip.build(entries)); const a = document.createElement("a"); a.href = url; a.download = "rewindpix-" + new Date().toISOString().slice(0, 10) + ".zip"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 8000);
+        msg("Downloaded " + files.length + " photo(s) as a ZIP.", "ok");
+      } else {
+        for (let i = 0; i < files.length; i++) { const f = files[i]; msg("Downloading " + (i + 1) + "/" + files.length + ": " + f.name + "…", "wait"); const blob = await RP.downloadBlob(f.fpath); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 8000); await new Promise((r) => setTimeout(r, 400)); }
+        msg("Downloaded " + files.length + " file(s) individually.", "ok");
+      }
+      exitSelect();
+    } catch (e) { msg("Download failed: " + e.message, "err"); } finally { $("seldl").disabled = $("selzip").disabled = false; }
+  }
+
+  // ---- finish roll: delete ._FILM working copies that have an Original_Film twin, then reset the budget ----
+  let _frTs = 0;
+  $("finishroll").onclick = async () => {
+    const films = allFiles.filter((f) => f.folder === "._FILM");
+    if (!films.length) { msg("No current-film (._FILM) frames to finish.", "err"); return; }
+    const now = Date.now();
+    if (now - _frTs > 4000) { _frTs = now; msg("Finish roll deletes " + films.length + " ._FILM working copies (twins stay in Original_Film) and resets the frame budget to 0. Tap Finish roll again to confirm.", "err"); return; }
+    _frTs = 0;
+    const orig = new Set(allFiles.filter((f) => f.folder === "Original_Film").map((f) => f.name));
+    let del = 0, skip = 0;
+    for (let i = 0; i < films.length; i++) { const f = films[i]; if (!orig.has(f.name)) { skip++; continue; } msg("Finishing " + (i + 1) + "/" + films.length + "…", "wait"); try { const xml = await RP.deleteFile(f.fpath); if (RP.ackOk(xml)) del++; } catch (e) {} }
+    try { await RP.setMaxPhotos(0); } catch (e) {}
+    msg("Finished roll: deleted " + del + " ._FILM frame(s), reset budget to 0." + (skip ? " Skipped " + skip + " without an Original_Film twin — download those first." : ""), "ok");
+    await sync();
+  };
 
   // auto-connect + initial sync on load
   sync();

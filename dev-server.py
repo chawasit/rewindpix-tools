@@ -52,6 +52,7 @@ def mock_response(path):
             ("In_Camera_Mode", "DCIM07102026SUNNY-WARM_0005.JPG", 1578000, 1550),
             ("In_Camera_Mode", "DCIM07102026SIMPLY-MONO_0004.JPG", 1336000, 1450),
             ("._FILM", "DCIM07102026GLVIVID_0003.JPG", 528992, 1600),  # dup of Original_Film — must be skipped
+            ("._FILM", "DCIM07102026ZZUNKNOWN_0006.JPG", 512000, 1650),  # no LUT match (RAW) + no Original_Film twin (Finish roll skips it)
         ]
         body = "<LIST>\n"
         for folder, name, size, tc in files:

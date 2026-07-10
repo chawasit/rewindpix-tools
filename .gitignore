@@ -5,3 +5,7 @@ desktop.ini
 *~
 .vscode/
 .idea/
+
+# test artifacts
+_*.jpg
+_test*

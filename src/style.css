@@ -80,3 +80,16 @@ input[type=number], input[type=text] {
 .tabbar a.active { color: #e6e8eb; }
 .tabbar a.active svg { stroke: #2f6feb; }
 .cell:active { transform: scale(.985); }
+
+/* gallery controls (folder + time-filter chips) */
+#galControls { margin-bottom: 10px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 8px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: 0 0 auto; padding: 7px 13px; border-radius: 999px; border: 1px solid #2a2f37; background: #14181d; color: #9aa4af; font-size: .8rem; white-space: nowrap; min-height: 34px; cursor: pointer; }
+.chip.on { background: rgba(47,111,235,.14); border-color: #2f6feb; color: #e6e8eb; }
+/* thumbnail placeholder / fade-in */
+.cell img { opacity: 0; transition: opacity .25s ease; }
+.cell.ready img { opacity: 1; }
+.cell.loading { animation: rppulse 1.3s ease-in-out infinite; }
+@keyframes rppulse { 0%,100% { background: #12161b; } 50% { background: #1b212b; } }
+.cell.thumb-fail::after { content: "⚠"; position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 3/2; display: flex; align-items: center; justify-content: center; color: #7b848f; }

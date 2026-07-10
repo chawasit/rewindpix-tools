@@ -62,11 +62,18 @@ def mock_response(path):
         return xml(body)
     if path.split("?", 1)[0].endswith(".JPG"):
         name = path.split("/")[-1]
-        hue = (hash(name) % 360)
-        svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">'
-               '<rect width="600" height="400" fill="hsl(%d,45%%,35%%)"/>'
-               '<text x="20" y="210" fill="white" font-family="monospace" font-size="22">%s</text></svg>' % (hue, name))
-        return "image/svg+xml", svg.encode()
+        try:
+            from PIL import Image, ImageDraw
+            import io, colorsys
+            r, g, b = [int(c * 255) for c in colorsys.hsv_to_rgb((hash(name) % 360) / 360.0, 0.5, 0.6)]
+            im = Image.new("RGB", (600, 400), (r, g, b))
+            ImageDraw.Draw(im).text((20, 190), name, fill=(255, 255, 255))
+            buf = io.BytesIO(); im.save(buf, "JPEG", quality=75)
+            return "image/jpeg", buf.getvalue()
+        except Exception:
+            svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">'
+                   '<rect width="600" height="400" fill="hsl(%d,45%%,35%%)"/></svg>' % (hash(name) % 360))
+            return "image/svg+xml", svg.encode()
     return xml("<Function><Status>0</Status></Function>")
 
 

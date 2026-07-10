@@ -6,20 +6,40 @@
   function msg(text, kind) { msgEl.textContent = text; msgEl.className = "msg show " + (kind || "wait"); }
   function clearMsg() { msgEl.className = "msg"; }
 
-  // ---- lazy, concurrency-capped image loader (single-client camera) ----
-  const MAX_CONCURRENT = 2;
-  let active = 0; const queue = [];
-  function pump() {
-    while (active < MAX_CONCURRENT && queue.length) {
-      const img = queue.shift(); active++;
-      img.src = img.dataset.src;
-      const done = () => { active--; pump(); };
-      img.onload = done; img.onerror = () => { img.classList.add("failed"); done(); };
-    }
+
+  // ---- localStorage thumbnail cache (downscaled data URLs; works over plain-HTTP LAN, no secure context) ----
+  const TKEY = (fp) => "thumb:" + fp;
+  function lsGet(fp) { try { return localStorage.getItem(TKEY(fp)); } catch (e) { return null; } }
+  function lsPut(fp, dataUrl) {
+    try { localStorage.setItem(TKEY(fp), dataUrl); }
+    catch (e) { try { Object.keys(localStorage).filter((k) => k.indexOf("thumb:") === 0).forEach((k) => localStorage.removeItem(k)); localStorage.setItem(TKEY(fp), dataUrl); } catch (e2) {} }
   }
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) if (e.isIntersecting) { io.unobserve(e.target); queue.push(e.target); pump(); }
-  }, { rootMargin: "300px" });
+  async function downscaleURL(blob) {
+    let bmp; try { bmp = await createImageBitmap(blob); } catch (e) { return null; }
+    const S = 300, k = Math.min(1, S / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
+    const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(bmp, 0, 0, w, h); if (bmp.close) bmp.close();
+    try { return c.toDataURL("image/jpeg", 0.7); } catch (e) { return null; }
+  }
+
+  // ---- gallery state: folders + timestamp filter + pagination ----
+  const PAGE = 12;
+  let allFiles = [], curFolder = "*", curFilter = "all", shown = PAGE;
+  function parseTime(f) { const m = (f.time || "").match(/(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : (f.timecode || 0); }
+  // ---- lazy loader → localStorage cache (downscaled data URLs). ONE image at a time; skeleton until ready ----
+  let active = 0; const q = [];
+  function pump() { while (active < 1 && q.length) { const img = q.shift(); active++; loadThumb(img).finally(() => { active--; pump(); }); } }
+  async function loadThumb(img) {
+    const cell = img.parentElement, fp = img.dataset.fp;
+    try {
+      let url = lsGet(fp);
+      if (!url) { const res = await fetch(RP.urlFor(fp), { cache: "force-cache" }); if (!res.ok) throw 0; url = await downscaleURL(await res.blob()); if (!url) throw 0; lsPut(fp, url); }
+      img.onload = () => { cell.classList.remove("loading"); cell.classList.add("ready"); };
+      img.onerror = () => { cell.classList.remove("loading"); cell.classList.add("thumb-fail"); };
+      img.src = url;
+    } catch (e) { cell.classList.remove("loading"); cell.classList.add("thumb-fail"); }
+  }
+  const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { io.unobserve(e.target); q.push(e.target); pump(); } }, { rootMargin: "300px" });
 
   function fmtBytes(n) { return n >= 1e6 ? (n / 1048576).toFixed(1) + " MB" : (n / 1024).toFixed(0) + " KB"; }
 
@@ -89,39 +109,45 @@
   function openViewer(files, i) { buildViewer(); vFiles = files; vIdx = i; vShow(); viewerEl.classList.add("open"); document.addEventListener("keydown", vKey); }
   function closeViewer() { if (viewerEl) viewerEl.classList.remove("open"); document.removeEventListener("keydown", vKey); }
 
-  function renderGallery(files) {
-    const seen = RP.seen();
-    const syncable = RP.syncableFiles(files);
-    const byFolder = {};
-    for (const f of syncable) (byFolder[f.folder] = byFolder[f.folder] || []).push(f);
-
+  function filtered() {
+    let list = allFiles.slice();
+    if (curFolder !== "*") list = list.filter((f) => f.folder === curFolder);
+    const now = Date.now(), day = 86400000, win = { today: day, "7d": 7 * day, "30d": 30 * day }[curFilter];
+    if (win) list = list.filter((f) => now - parseTime(f) < win);
+    return list.sort((a, b) => b.timecode - a.timecode);
+  }
+  function chip(label, on, fn) { const b = document.createElement("button"); b.className = "chip" + (on ? " on" : ""); b.textContent = label; b.onclick = fn; return b; }
+  function renderControls() {
+    const counts = {}; allFiles.forEach((f) => (counts[f.folder] = (counts[f.folder] || 0) + 1));
+    const fb = $("folderChips"); fb.innerHTML = "";
+    fb.appendChild(chip("All (" + allFiles.length + ")", curFolder === "*", () => { curFolder = "*"; shown = PAGE; renderControls(); renderPage(); }));
+    Object.keys(counts).sort().forEach((n) => fb.appendChild(chip(n + " (" + counts[n] + ")", curFolder === n, () => { curFolder = n; shown = PAGE; renderControls(); renderPage(); })));
+    const tb = $("timeChips"); tb.innerHTML = "";
+    [["all", "All time"], ["today", "Today"], ["7d", "7 days"], ["30d", "30 days"]].forEach(([k, l]) => tb.appendChild(chip(l, curFilter === k, () => { curFilter = k; shown = PAGE; renderControls(); renderPage(); })));
+  }
+  function renderPage() {
+    const seen = RP.seen(), list = filtered();
     galleryEl.innerHTML = "";
-    const order = ["Original_Film", "In_Camera_Mode"];
-    const folders = Object.keys(byFolder).sort((a, b) => order.indexOf(a) - order.indexOf(b));
-    let newCount = 0;
-
-    for (const folder of folders) {
-      const items = byFolder[folder].sort((a, b) => b.timecode - a.timecode);
-      const title = document.createElement("div"); title.className = "folder-title";
-      title.textContent = folder + "  ·  " + items.length + " photos"; galleryEl.appendChild(title);
-
-      const grid = document.createElement("div"); grid.className = "grid";
-      for (let idx = 0; idx < items.length; idx++) {
-        const f = items[idx];
-        const isNew = !seen.has(f.fpath); if (isNew) newCount++;
-        const cell = document.createElement("div"); cell.className = "cell"; cell.tabIndex = 0; cell.style.cursor = "pointer";
-        const img = document.createElement("img"); img.dataset.src = RP.urlFor(f.fpath); img.alt = f.name; img.loading = "lazy";
-        cell.appendChild(img); io.observe(img);
-        if (isNew) { const b = document.createElement("span"); b.className = "new"; b.textContent = "NEW"; cell.appendChild(b); }
-        const cap = document.createElement("div"); cap.className = "cap";
-        const nm = document.createElement("span"); nm.className = "name"; nm.textContent = f.name; nm.title = f.name + " · " + fmtBytes(f.size);
-        cap.appendChild(nm); cell.appendChild(cap); grid.appendChild(cell);
-        const openThis = ((arr, i) => () => openViewer(arr, i))(items, idx);
-        cell.onclick = openThis; cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openThis(); } };
-      }
-      galleryEl.appendChild(grid);
-    }
-    return { total: syncable.length, newCount, files: syncable };
+    if (!list.length) { galleryEl.innerHTML = "<div style='color:#7b848f;padding:24px;text-align:center'>No photos in this view.</div>"; return; }
+    const grid = document.createElement("div"); grid.className = "grid";
+    list.slice(0, shown).forEach((f, idx) => {
+      const cell = document.createElement("div"); cell.className = "cell loading"; cell.tabIndex = 0; cell.style.cursor = "pointer";
+      const img = document.createElement("img"); img.dataset.fp = f.fpath; img.alt = f.name;
+      cell.appendChild(img); io.observe(img);
+      if (!seen.has(f.fpath)) { const b = document.createElement("span"); b.className = "new"; b.textContent = "NEW"; cell.appendChild(b); }
+      const cap = document.createElement("div"); cap.className = "cap"; const nm = document.createElement("span"); nm.className = "name"; nm.textContent = f.name; nm.title = f.name + " · " + fmtBytes(f.size);
+      cap.appendChild(nm); cell.appendChild(cap); grid.appendChild(cell);
+      cell.onclick = () => openViewer(list, idx);
+      cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openViewer(list, idx); } };
+    });
+    galleryEl.appendChild(grid);
+    if (list.length > shown) { const more = document.createElement("button"); more.className = "primary"; more.style.cssText = "margin:16px auto 0;display:block"; more.textContent = "Load more (" + (list.length - shown) + ")"; more.onclick = () => { shown += PAGE; renderPage(); }; galleryEl.appendChild(more); }
+  }
+  function renderGallery(files) {
+    allFiles = (files || []).filter((f) => f.folder && f.folder !== "._FILM");
+    const seen = RP.seen(); const newCount = allFiles.filter((f) => !seen.has(f.fpath)).length;
+    shown = PAGE; renderControls(); renderPage();
+    return { total: allFiles.length, newCount };
   }
 
   let lastFiles = [];
@@ -151,8 +177,8 @@
 
   $("sync").onclick = sync;
   $("reconnect").onclick = connect;
-  $("marksynced").onclick = () => { RP.markSeen(RP.syncableFiles(lastFiles).map((f) => f.fpath)); renderGallery(lastFiles); msg("Marked all current photos as synced.", "ok"); };
-  $("clearseen").onclick = () => { RP.resetSeen(); renderGallery(lastFiles); msg("Sync memory reset — all photos show as NEW again.", "ok"); };
+  $("marksynced").onclick = () => { RP.markSeen(RP.syncableFiles(lastFiles).map((f) => f.fpath)); renderPage(); msg("Marked all current photos as synced.", "ok"); };
+  $("clearseen").onclick = () => { RP.resetSeen(); renderPage(); msg("Sync memory reset — all photos show as NEW again.", "ok"); };
   $("downloadall").onclick = downloadAll;
 
   // auto-connect + initial sync on load

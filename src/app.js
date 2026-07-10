@@ -215,7 +215,7 @@
 
   $("sync").onclick = sync;
   $("reconnect").onclick = connect;
-  $("marksynced").onclick = () => { RP.markSeen(RP.syncableFiles(lastFiles).map((f) => f.fpath)); renderPage(); msg("Marked all current photos as synced.", "ok"); };
+  $("marksynced").onclick = () => { RP.markSeen(allFiles.map((f) => f.fpath)); renderPage(); msg("Marked all photos as synced — NEW badges cleared.", "ok"); };
   $("clearseen").onclick = () => { RP.resetSeen(); renderPage(); msg("Sync memory reset — all photos show as NEW again.", "ok"); };
   $("downloadall").onclick = downloadAll;
 

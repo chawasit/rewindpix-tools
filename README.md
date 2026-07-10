@@ -94,6 +94,11 @@ installs can't self-update since the camera drops root uploads.
   never HTTPS (that's also why there's no GitHub Pages site). Served from the camera's SD they're
   **same-origin** as the API, so `fetch` has no CORS or mixed-content limits.
 - **Build the single file:** `python build.py` bundles `src/` → `rewindpix.html`.
+- **Tests:** `npm test` (or `node --test`) runs a **hermetic** suite (Node's built-in runner, no deps,
+  no camera/server/browser) in `test/` — it loads `camera.js`/`zip.js`/`develop.js` in a `vm` sandbox
+  against an in-process mock camera and checks the command encoding, XML parsers, the confirmed
+  wire-sequences (clock-set `3005`→`3006`, delete, roll, sync), ZIP structure, and the LUT catalog.
+  `dev-server.py --mock` is the matching **stateful** mock for manual/browser QA.
 - **Deploy onto the camera** (USB vs HFS upload, the power-cycle re-index) is detailed in
   [The camera as a host](#the-camera-as-a-host-hfs) below.
 

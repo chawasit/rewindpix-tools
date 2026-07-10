@@ -76,7 +76,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click();
       a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-      btn.textContent = "✓";
+      RP.markSeen([fpath]); renderPage(); btn.textContent = "✓";
     } catch (e) { btn.textContent = "err"; msg("Download failed: " + e.message, "err"); }
     finally { btn.disabled = false; setTimeout(() => (btn.textContent = prev), 1500); }
   }
@@ -242,7 +242,7 @@
         for (let i = 0; i < files.length; i++) { const f = files[i]; msg("Downloading " + (i + 1) + "/" + files.length + ": " + f.name + "…", "wait"); const blob = await RP.downloadBlob(f.fpath); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 8000); await new Promise((r) => setTimeout(r, 400)); }
         msg("Downloaded " + files.length + " file(s) individually.", "ok");
       }
-      exitSelect();
+      RP.markSeen(files.map((f) => f.fpath)); exitSelect();
     } catch (e) { msg("Download failed: " + e.message, "err"); } finally { $("seldl").disabled = $("selzip").disabled = false; }
   }
 

@@ -52,8 +52,11 @@ input[type=number], input[type=text] {
   font-size: .95rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; width: 110px;
 }
 
-.msg { margin: 10px 0; padding: 10px 12px; border-radius: 9px; font-size: .88rem; display: none; white-space: pre-wrap; }
-.msg.show { display: block; }
+.msg { position: fixed; left: 50%; bottom: calc(78px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(6px);
+  z-index: 120; width: max-content; max-width: min(92vw, 520px); margin: 0; padding: 10px 14px; border-radius: 10px;
+  font-size: .88rem; white-space: pre-wrap; box-shadow: 0 6px 22px rgba(0,0,0,.5); opacity: 0; pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease; }
+.msg.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .msg.ok { background: #10240f; border: 1px solid #2e6b28; color: #9ff196; }
 .msg.err { background: #2a0f0f; border: 1px solid #7a2c2c; color: #ffb4b4; }
 .msg.wait { background: #14181d; border: 1px solid #2a2f37; color: #9aa4af; }
@@ -169,7 +172,7 @@ body.selecting .cell.sel::before { content: "✓"; background: #2f6feb; border-c
   <h1>RewindPix</h1>
   <div class="status-bar" id="status"></div>
   <span class="spacer"></span>
-  <span title="build version — updates on ⟳ Update" style="font-size:.7rem;color:#7b848f;font-family:ui-monospace,Menlo,monospace;margin-right:8px">v2026-07-11 04:16</span>
+  <span title="build version — updates on ⟳ Update" style="font-size:.7rem;color:#7b848f;font-family:ui-monospace,Menlo,monospace;margin-right:8px">v2026-07-11 04:26</span>
   <button id="rp-update" title="Update in 2 steps: 1) download the latest from GitHub (needs internet), 2) reconnect to the camera's WiFi and upload" style="margin-left:12px">⟳ Update</button>
 </header>
 <main id="app"></main>
@@ -510,15 +513,25 @@ body.selecting .cell.sel::before { content: "✓"; background: #2f6feb; border-c
   bar.innerHTML = TABS.map((t) => '<a href="' + (spa ? "#" + t.id : t.href) + '" data-tab="' + t.id + '">' + t.icon + "<span>" + t.label + "</span></a>").join("");
   document.body.appendChild(bar);
   const mark = (id) => bar.querySelectorAll("a").forEach((a) => a.classList.toggle("active", a.dataset.tab === id));
+  // auto-hide the toast (#msg) after a few seconds for terminal states; keep "wait" until replaced
+  function watchToast() {
+    const m = document.getElementById("msg"); if (!m || m._toastWatched) return; m._toastWatched = true;
+    let timer = null;
+    new MutationObserver(() => {
+      clearTimeout(timer);
+      if (/\bshow\b/.test(m.className) && /\b(ok|err)\b/.test(m.className)) timer = setTimeout(() => m.classList.remove("show"), 4500);
+    }).observe(m, { attributes: true, attributeFilter: ["class"], childList: true, characterData: true, subtree: true });
+  }
   if (spa) {
     const cur = () => (location.hash.replace(/^#/, "").split("?")[0]) || "gallery";
-    window.RPNav = mark;                                  // the SPA router calls this on view change
+    window.RPNav = (id) => { mark(id); watchToast(); };   // the SPA router calls this on view change
     mark(cur()); addEventListener("hashchange", () => mark(cur()));
   } else {
     const page = location.pathname.split("/").pop() || "index.html";
     const t = TABS.find((x) => x.href === page) || TABS[0];
     mark(t.id);
   }
+  watchToast();   // multi-file: #msg is present now; SPA: also re-attached per view via RPNav
 })();
 
 </script>

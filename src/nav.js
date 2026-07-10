@@ -14,13 +14,23 @@
   bar.innerHTML = TABS.map((t) => '<a href="' + (spa ? "#" + t.id : t.href) + '" data-tab="' + t.id + '">' + t.icon + "<span>" + t.label + "</span></a>").join("");
   document.body.appendChild(bar);
   const mark = (id) => bar.querySelectorAll("a").forEach((a) => a.classList.toggle("active", a.dataset.tab === id));
+  // auto-hide the toast (#msg) after a few seconds for terminal states; keep "wait" until replaced
+  function watchToast() {
+    const m = document.getElementById("msg"); if (!m || m._toastWatched) return; m._toastWatched = true;
+    let timer = null;
+    new MutationObserver(() => {
+      clearTimeout(timer);
+      if (/\bshow\b/.test(m.className) && /\b(ok|err)\b/.test(m.className)) timer = setTimeout(() => m.classList.remove("show"), 4500);
+    }).observe(m, { attributes: true, attributeFilter: ["class"], childList: true, characterData: true, subtree: true });
+  }
   if (spa) {
     const cur = () => (location.hash.replace(/^#/, "").split("?")[0]) || "gallery";
-    window.RPNav = mark;                                  // the SPA router calls this on view change
+    window.RPNav = (id) => { mark(id); watchToast(); };   // the SPA router calls this on view change
     mark(cur()); addEventListener("hashchange", () => mark(cur()));
   } else {
     const page = location.pathname.split("/").pop() || "index.html";
     const t = TABS.find((x) => x.href === page) || TABS[0];
     mark(t.id);
   }
+  watchToast();   // multi-file: #msg is present now; SPA: also re-attached per view via RPNav
 })();

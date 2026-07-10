@@ -38,8 +38,11 @@ input[type=number], input[type=text] {
   font-size: .95rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; width: 110px;
 }
 
-.msg { margin: 10px 0; padding: 10px 12px; border-radius: 9px; font-size: .88rem; display: none; white-space: pre-wrap; }
-.msg.show { display: block; }
+.msg { position: fixed; left: 50%; bottom: calc(78px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(6px);
+  z-index: 120; width: max-content; max-width: min(92vw, 520px); margin: 0; padding: 10px 14px; border-radius: 10px;
+  font-size: .88rem; white-space: pre-wrap; box-shadow: 0 6px 22px rgba(0,0,0,.5); opacity: 0; pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease; }
+.msg.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .msg.ok { background: #10240f; border: 1px solid #2e6b28; color: #9ff196; }
 .msg.err { background: #2a0f0f; border: 1px solid #7a2c2c; color: #ffb4b4; }
 .msg.wait { background: #14181d; border: 1px solid #2a2f37; color: #9aa4af; }

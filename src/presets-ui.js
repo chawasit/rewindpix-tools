@@ -19,9 +19,14 @@
     const sel = $("exSample"); if (!sel) return;
     ss.del("rp_expick_req");   // entering presets cancels any pending gallery-pick request
     const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
+    // default "Color chart" example — the generated colour/greyscale pattern (shows param effects clearly)
+    const chart = document.createElement("canvas"); chart.width = 384; chart.height = 256;
+    (function () { const x = chart.getContext("2d"); const bars = ["#e33", "#3d3", "#39f", "#3dd", "#d3d", "#ee3", "#fff", "#111", "#c9a37a", "#7a5a3a"]; const bw = chart.width / bars.length; bars.forEach((c, i) => { x.fillStyle = c; x.fillRect(i * bw, 0, bw + 1, 170); }); for (let i = 0; i < chart.width; i++) { const v = Math.round(i / (chart.width - 1) * 255); x.fillStyle = "rgb(" + v + "," + v + "," + v + ")"; x.fillRect(i, 170, 1, 86); } })();
+    sampleSrc["Color chart"] = chart.toDataURL("image/png");
     fetch("samples/samples.json").then((r) => (r.ok ? r.json() : null)).catch(() => null).then((d) => {
       if (d && d.samples) d.samples.forEach((s) => { if (!(s.name in sampleSrc)) sampleSrc[s.name] = "samples/" + s.file; });
-      Object.keys(sampleSrc).sort().forEach((n) => opt("s:" + n, n));
+      opt("s:Color chart", "Color chart");
+      Object.keys(sampleSrc).filter((n) => n !== "Color chart").sort().forEach((n) => opt("s:" + n, n));
       const picked = ss.get("rp_expick"); let pickedLabel = null;
       if (picked) {
         ss.del("rp_expick");
@@ -29,8 +34,7 @@
         sampleSrc[pickedLabel] = RP.urlFor(picked); opt("s:" + pickedLabel, pickedLabel);
       }
       opt("__gallery__", "📷 Pick from gallery…");
-      const firstOpt = sel.querySelector("option[value^='s:']");
-      const startVal = pickedLabel ? "s:" + pickedLabel : (firstOpt ? firstOpt.value : null);
+      const startVal = pickedLabel ? "s:" + pickedLabel : "s:Color chart";
       if (startVal) { sel.value = startVal; const nm = startVal.slice(2); if (sampleSrc[nm]) loadSample(sampleSrc[nm]); }
       sel.onchange = () => {
         if (sel.value === "__gallery__") { ss.set("rp_expick_req", "1"); if (window.RP_SPA) location.hash = "#gallery"; else location.href = "index.html"; return; }

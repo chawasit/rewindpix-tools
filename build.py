@@ -92,6 +92,13 @@ if _sj.exists():
         if sp.exists():
             RP_SAMPLES[s["name"]] = "data:image/jpeg;base64," + b64(sp); samp_total += sp.stat().st_size
 
+# ---- official LUT preview thumbnails inlined so the Library shows them in the single-file build too ----
+RP_PREVIEWS, prev_total = {}, 0
+_pd = SRC / "previews"
+if _pd.is_dir():
+    for pp in sorted(_pd.glob("*.jpg")):
+        RP_PREVIEWS[pp.stem] = "data:image/jpeg;base64," + b64(pp); prev_total += pp.stat().st_size
+
 ICON = b64(SRC / "icon-192.png")
 MANIFEST = base64.b64encode(json.dumps({
     "name": "RewindPix", "short_name": "RewindPix", "start_url": ".", "display": "standalone",
@@ -127,7 +134,7 @@ doc = f"""<!doctype html>
 </header>
 <main id="app"></main>
 
-<script>window.RP_SPA = true; window.RP_LUTS = {json.dumps(RP_LUTS)}; window.RP_SAMPLES = {json.dumps(RP_SAMPLES)};</script>
+<script>window.RP_SPA = true; window.RP_LUTS = {json.dumps(RP_LUTS)}; window.RP_SAMPLES = {json.dumps(RP_SAMPLES)}; window.RP_PREVIEWS = {json.dumps(RP_PREVIEWS)};</script>
 <script>
 {SHARED}
 </script>
@@ -173,3 +180,4 @@ OUT.write_text(doc, encoding="utf-8", newline="\n")
 print("wrote %s  (%.2f MB)" % (OUT.name, OUT.stat().st_size / 1048576))
 print("inlined %d LUTs (%.2f MB PNG): %s" % (len(picked), total / 1048576, ", ".join(sorted(picked))))
 print("inlined %d sample photos (%.0f KB)" % (len(RP_SAMPLES), samp_total / 1024))
+print("inlined %d LUT previews (%.0f KB)" % (len(RP_PREVIEWS), prev_total / 1024))

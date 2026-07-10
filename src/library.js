@@ -26,7 +26,7 @@
       if (onDel) { const d = document.createElement("button"); d.textContent = "✕"; d.style.cssText = "padding:5px 9px;font-size:.8rem"; d.onclick = onDel; it.appendChild(d); }
       box.appendChild(it);
     };
-    [...bundled].sort().forEach((n) => row(n, "bundled", null, "previews/" + n + ".jpg"));
+    [...bundled].sort().forEach((n) => row(n, "bundled", null, (window.RP_PREVIEWS && window.RP_PREVIEWS[n]) || ("previews/" + n + ".jpg")));
     custom.forEach((l) => row(l.name, "custom", () => { RPDev.customLuts.remove(l.name); renderLuts(); msg("Removed custom LUT: " + l.name, "ok"); }));
     if (!bundled.size && !custom.length) box.innerHTML = "<div style='color:#7b848f;font-size:.85rem'>No LUTs. Upload one, or Sync from GitHub.</div>";
     $("lutCount").textContent = "(" + (bundled.size + custom.length) + ")";

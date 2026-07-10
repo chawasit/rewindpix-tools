@@ -32,21 +32,26 @@
   const UNSET = new Array(7).fill(-255);
   const isUnset = (p) => p && p.length === 7 && p.every((v) => v === -255);
   const lutNamesP = (window.RPDev && RPDev.lutCatalog) ? RPDev.lutCatalog() : Promise.resolve({});
+  const lutSet = new Set(), lutSrcMap = {};
+  lutNamesP.then((cat) => Object.keys(cat).forEach((n) => { const u = n.toUpperCase(); lutSet.add(u); lutSrcMap[u] = cat[n]; }));
   function makeSlot(container, tag, hasName, overridable) {
     const el = document.createElement("div"); el.className = "slot";
     const hd = document.createElement("div"); hd.className = "hd";
     hd.innerHTML = `<span class="tag">${tag}</span>`;
-    let nameEl = null, ovr = null;
+    let nameEl = null, ovr = null, resetBtn = null;
     if (hasName) {
       nameEl = document.createElement("input"); nameEl.className = "name"; nameEl.maxLength = 10; nameEl.placeholder = "NAME";
-      nameEl.oninput = () => { nameEl.value = nameEl.value.toUpperCase().replace(/[^A-Z0-9_. -]/g, "").slice(0, 10); };
+      nameEl.oninput = () => { nameEl.value = nameEl.value.toUpperCase().replace(/[^A-Z0-9_. -]/g, "").slice(0, 10); syncLutUi(); renderExample(); };
       hd.appendChild(nameEl);
       const pick = document.createElement("select"); pick.className = "lutpick";
       pick.title = "Use a LUT's name as this slot's name — enables the gallery's Current-film auto-preview";
       pick.innerHTML = '<option value="">LUT ▾</option>';
       lutNamesP.then((cat) => Object.keys(cat).sort().forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n; pick.appendChild(o); }));
-      pick.onchange = () => { if (!pick.value) return; nameEl.value = pick.value.toUpperCase().replace(/[^A-Z0-9_. -]/g, "").slice(0, 10); pick.value = ""; };
+      pick.onchange = () => { if (!pick.value) return; nameEl.value = pick.value.toUpperCase().replace(/[^A-Z0-9_. -]/g, "").slice(0, 10); pick.value = ""; syncLutUi(); renderExample(); };
       hd.appendChild(pick);
+      resetBtn = document.createElement("button"); resetBtn.className = "lutreset"; resetBtn.textContent = "↺ defaults";
+      resetBtn.title = "Reset the 7 params to defaults — official LUTs are tuned for the default params"; resetBtn.style.display = "none";
+      hd.appendChild(resetBtn);
     } else if (overridable) {
       const lab = document.createElement("label"); lab.style.cssText = "font-size:.74rem;color:#9aa4af;display:flex;gap:5px;align-items:center";
       ovr = document.createElement("input"); ovr.type = "checkbox";
@@ -58,11 +63,32 @@
       row.innerHTML = `<label>${f.k}</label>`;
       const r = document.createElement("input"); r.type = "range"; r.min = f.min; r.max = f.max; r.step = 1; r.value = f.def;
       const v = document.createElement("span"); v.className = "v"; v.textContent = f.def;
-      r.oninput = () => { v.textContent = r.value; preview(get().params); };
+      r.oninput = () => { v.textContent = r.value; preview(get().params); renderExample(); };
       row.appendChild(r); row.appendChild(v); el.appendChild(row); return r;
     });
+    // per-slot example: the color chart with this slot's params (+ its LUT, when the name matches one)
+    const exWrap = document.createElement("div"); exWrap.className = "exwrap"; exWrap.innerHTML = '<span class="exlabel">Example</span>';
+    const exCanvas = document.createElement("canvas"); exCanvas.className = "ex"; exCanvas.width = 300; exCanvas.height = 50;
+    exWrap.appendChild(exCanvas); el.appendChild(exWrap);
+    let exEng = null, exLut = null, exLutImg = null;
+    async function renderExample() {
+      try {
+        const raw = get().params, pobj = {};
+        FIELDS.forEach((f, i) => (pobj[f.k] = raw[i] === -255 ? f.def : raw[i]));
+        if (!exEng) { exEng = RPDev.createEngine(); exEng.setPhoto(chartSrc); }
+        const nm = (nameEl && nameEl.value || "").toUpperCase(), src = lutSrcMap[nm];
+        if (src) { if (exLut !== nm) { exLutImg = await RPDev.load(src).catch(() => null); exLut = nm; } if (exLutImg) exEng.setLut(exLutImg); }
+        else if (exLut) { exLut = null; exLutImg = null; try { exEng.gl.getExtension("WEBGL_lose_context") && exEng.gl.getExtension("WEBGL_lose_context").loseContext(); } catch (e) {} exEng = RPDev.createEngine(); exEng.setPhoto(chartSrc); }
+        exEng.render(pobj, exCanvas.width, exCanvas.height);
+        const cx = exCanvas.getContext("2d"); cx.clearRect(0, 0, exCanvas.width, exCanvas.height); cx.drawImage(exEng.canvas, 0, 0, exCanvas.width, exCanvas.height);
+      } catch (e) { /* WebGL optional */ }
+    }
     function setDisabled(d) { sliders.forEach((s) => (s.disabled = d)); el.style.opacity = d ? ".6" : "1"; }
-    if (ovr) ovr.onchange = () => { setDisabled(!ovr.checked); preview(get().params); };
+    if (ovr) ovr.onchange = () => { setDisabled(!ovr.checked); preview(get().params); renderExample(); };
+    function resetParams() { DEFAULTS.forEach((val, i) => { sliders[i].value = val; sliders[i].nextSibling.textContent = val; }); preview(get().params); renderExample(); }
+    function syncLutUi() { if (resetBtn) resetBtn.style.display = lutSet.has((nameEl && nameEl.value || "").toUpperCase()) ? "" : "none"; }
+    if (resetBtn) resetBtn.onclick = resetParams;
+    lutNamesP.then(() => { syncLutUi(); renderExample(); });
     function get() {
       if (overridable && ovr && !ovr.checked) return { name: null, params: UNSET.slice() };
       return { name: nameEl ? nameEl.value : null, params: sliders.map((s) => +s.value) };
@@ -75,6 +101,7 @@
       } else {
         (params || DEFAULTS).forEach((val, i) => { sliders[i].value = val; sliders[i].nextSibling.textContent = val; });
       }
+      syncLutUi(); renderExample();
     }
     container.appendChild(el); return { get, set };
   }

@@ -38,8 +38,8 @@ The camera API is **cleartext HTTP** at `http://192.168.1.254`. Browsers block r
 page to an HTTP address ("mixed content") — so these tools are **not** hosted on GitHub Pages. Run them
 over `file://` or `http://` instead (no HTTPS = no block). Pick one:
 
-- **Download & open the file** — grab a tool's `.html` (there's a download link on each tool) and open it
-  (`file://`). Works on desktop.
+- **Download & open** — download the repo (**Code → Download ZIP**), unzip, and open `index.html` over
+  `file://` (desktop). Camera features need the camera served same-origin — use an option below.
 - **Serve over HTTP** — from the folder run `python -m http.server 8000`, then open
   `http://localhost:8000/set-roll-size.html` (or `http://<computer-ip>:8000/…` from another device on the WiFi).
 - **Serve from the camera's SD card** — the camera's `hfs` server serves `A:\` over HTTP, so a `.html`

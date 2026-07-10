@@ -20,6 +20,7 @@
   .slot .hd { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
   .slot .hd .tag { font-size:.72rem; color:#9aa4af; }
   .slot input.name { width:130px; text-transform:uppercase; }
+  .slot .hd select.lutpick { padding:3px 6px; font-size:.72rem; width:auto; }
   .slot .f { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:.78rem; color:#9aa4af; }
   .slot .f label { width:74px; }
   .slot .f input[type=range]{ flex:1; }
@@ -48,6 +49,7 @@
     <div class="bank">
       <h2>Film slots <span style="color:#7b848f;font-weight:400;font-size:.8rem">— name (≤10, UPPERCASE) + 7 params</span></h2>
       <div id="filmSlots"></div>
+      <p style="color:#7b848f;font-size:.75rem;margin:2px 0 10px">Name a slot after a LUT with the <b>LUT ▾</b> picker: the camera embeds the slot name in every shot's filename, so the gallery's <b>Current film</b> view auto-previews the developed look using that LUT. The 7 params below still apply on the camera as usual. Auto-preview needs an exact LUT-name match (≤10 chars).</p>
       <button class="primary" id="applyFilm">Apply film slots to camera</button>
     </div>
     <div class="bank">

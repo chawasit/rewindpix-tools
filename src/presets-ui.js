@@ -31,6 +31,7 @@
   // ---- slot card ----
   const UNSET = new Array(7).fill(-255);
   const isUnset = (p) => p && p.length === 7 && p.every((v) => v === -255);
+  const lutNamesP = (window.RPDev && RPDev.lutCatalog) ? RPDev.lutCatalog() : Promise.resolve({});
   function makeSlot(container, tag, hasName, overridable) {
     const el = document.createElement("div"); el.className = "slot";
     const hd = document.createElement("div"); hd.className = "hd";
@@ -40,6 +41,12 @@
       nameEl = document.createElement("input"); nameEl.className = "name"; nameEl.maxLength = 10; nameEl.placeholder = "NAME";
       nameEl.oninput = () => { nameEl.value = nameEl.value.toUpperCase().replace(/[^A-Z0-9_. -]/g, "").slice(0, 10); };
       hd.appendChild(nameEl);
+      const pick = document.createElement("select"); pick.className = "lutpick";
+      pick.title = "Use a LUT's name as this slot's name — enables the gallery's Current-film auto-preview";
+      pick.innerHTML = '<option value="">LUT ▾</option>';
+      lutNamesP.then((cat) => Object.keys(cat).sort().forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n; pick.appendChild(o); }));
+      pick.onchange = () => { if (!pick.value) return; nameEl.value = pick.value.toUpperCase().replace(/[^A-Z0-9_. -]/g, "").slice(0, 10); pick.value = ""; };
+      hd.appendChild(pick);
     } else if (overridable) {
       const lab = document.createElement("label"); lab.style.cssText = "font-size:.74rem;color:#9aa4af;display:flex;gap:5px;align-items:center";
       ovr = document.createElement("input"); ovr.type = "checkbox";

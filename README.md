@@ -16,7 +16,7 @@ Home Screen** (manifest + icons). The repo is source only; there's no hosted sit
 | Tool | What it does |
 |------|--------------|
 | **[Gallery + Sync](index.html)** — `index.html` | The app home. Connect to the camera, browse photos by folder, see what's new since last sync, download shots individually, **download the whole roll as one ZIP** (fetched serialized, packaged in-browser), or send a photo to **Develop**. Serialized single-client client; skips the `._FILM` duplicate. |
-| [Develop](develop.html) | Apply any of the **36 bundled film HALD-CLUT LUTs** + 7 params (luminance, contrast, RGB gains, hue, saturation) to a photo in-browser (WebGL), preview live, and export a full-resolution JPEG. Loads a photo from the gallery (`?photo=`) or a file upload. |
+| [Develop](develop.html) | Apply any of the **36 bundled film HALD-CLUT LUTs** + 7 params (luminance, contrast, RGB gains, hue, saturation) to a photo in-browser (WebGL), preview live, and export a full-resolution JPEG. Load a photo by **picking one from the camera**, from the gallery (`?photo=`), or a file upload. **Save to camera** writes the result to `DCIM/Developed_Photos` — best-effort: if this firmware's HTTP upload is read-only (see below) it verifies the readback and falls back to a device download. |
 | [Presets](presets.html) | Edit the camera's 3 **film** slots (names + 7 params) and 3 **in-camera** slots (params only, with an override / keep-baked toggle), apply them to the camera, and save / import / export a preset collection. |
 | [Set roll size](set-roll-size.html) | Sets the frame budget (max photos) to any number (`cmd=8004`). Default 99; `0` clears the roll. |
 

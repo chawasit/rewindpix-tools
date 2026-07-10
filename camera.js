@@ -73,6 +73,20 @@
   // ---- writes ----
   RP.setMaxPhotos = (n) => RP.cmd(8004, { par: n });
 
+  /* Write a developed JPEG back to the camera under DCIM/Developed_Photos via the HFS upload form.
+   * NOTE: some firmware's HFS upload is a stub (200 but no write), so we trust only a readback:
+   * returns { ok } where ok means the file is actually retrievable afterward. */
+  RP.uploadDeveloped = (name, blob) => enqueue(async () => {
+    const dir = "DCIM/Developed_Photos";
+    const form = new FormData();
+    form.append("fileupload", blob, name);   // field name observed on this camera's upload form
+    try { await fetch(base + "/" + dir + "/", { method: "POST", body: form, cache: "no-store" }); } catch (e) { /* readback below is the real test */ }
+    try {
+      const chk = await fetch(base + "/" + dir + "/" + name, { cache: "no-store" });
+      return { ok: chk.ok && (await chk.blob()).size > 0, url: dir + "/" + name };
+    } catch (e) { return { ok: false, url: dir + "/" + name }; }
+  });
+
   // ---- slots (for the preset editor, phase 3) ----
   RP.PARAM_FIELDS = ["LUM", "CONTRAST", "RGAIN", "GGAIN", "BGAIN", "HUE", "SAT"];
   RP.getSlotNames = async () => { const x = await RP.cmd(8003); return [tag(x, "FILM_FILTER_C1"), tag(x, "FILM_FILTER_C2"), tag(x, "FILM_FILTER_C3")]; };

@@ -34,8 +34,14 @@
   <div class="row">
     <label class="filebtn"><button onclick="document.getElementById('file').click()">Choose photo…</button>
       <input id="file" type="file" accept="image/jpeg,image/png" hidden></label>
+    <button id="fromcam">From camera…</button>
     <button id="export" class="primary" disabled>Export full-res ⤓</button>
+    <button id="savecam" disabled>Save to camera ⤒</button>
     <span id="photoName" style="color:#9aa4af;font-size:.85rem"></span>
+  </div>
+  <div id="picker" style="display:none">
+    <div class="row"><b style="flex:1">Pick a photo from the camera</b><button id="pickclose">Close</button></div>
+    <div id="pickgrid" class="grid"></div>
   </div>
   <div class="msg" id="msg"></div>
   <div class="dev-wrap">
@@ -47,7 +53,7 @@
       <button id="reset" style="margin-top:14px">Reset params</button>
     </div>
   </div>
-  <p class="caution">Unofficial · reverse-engineered · use at your own risk. Develop runs entirely in your browser (WebGL); nothing is uploaded.</p>
+  <p class="caution">Unofficial · reverse-engineered · use at your own risk. Develop runs in your browser (WebGL). “Save to camera” uploads the result to <code>DCIM/Developed_Photos</code>, and falls back to a device download if the camera's HTTP upload is read-only.</p>
 </main>
 <script src="camera.js"></script>
 <script src="develop.js"></script>
@@ -78,7 +84,7 @@
     try{
       const img = await RPDev.load(src);
       photo = img; ensureEngine(); engine.setPhoto(img); preview();
-      $("export").disabled=false; $("photoName").textContent = name||""; msg(img.naturalWidth+"×"+img.naturalHeight+" loaded.","ok");
+      $("export").disabled=false; $("savecam").disabled=false; $("photoName").textContent = name||""; msg(img.naturalWidth+"×"+img.naturalHeight+" loaded.","ok");
     }catch(e){ msg("Couldn't load photo: "+e.message,"err"); }
   }
 
@@ -95,16 +101,59 @@
     catch(e){ msg("LUT load failed: "+e.message,"err"); }
   };
 
+  function downloadBlob(blob, name){
+    const url=URL.createObjectURL(blob); const a=document.createElement("a");
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }
+
+  // ---- pick a photo from the camera (gentle: 2-at-a-time lazy thumbs, single-client) ----
+  let pActive=0; const pQueue=[];
+  function pPump(){ while(pActive<2 && pQueue.length){ const img=pQueue.shift(); pActive++; img.src=img.dataset.src; const done=()=>{pActive--;pPump();}; img.onload=done; img.onerror=done; } }
+  const pIO=new IntersectionObserver(es=>{ for(const e of es) if(e.isIntersecting){ pIO.unobserve(e.target); pQueue.push(e.target); pPump(); } }, {rootMargin:"200px"});
+  $("fromcam").onclick = async () => {
+    const box=$("picker"), grid=$("pickgrid"); box.style.display="block";
+    grid.innerHTML="<div style='color:#7b848f;padding:12px'>Listing camera photos…</div>";
+    try{
+      const files=RP.syncableFiles(await RP.listFiles()).sort((a,b)=>b.timecode-a.timecode);
+      if(!files.length){ grid.innerHTML="<div style='color:#ffb4b4;padding:12px'>No photos on the camera — is the SD card mounted?</div>"; return; }
+      grid.innerHTML="";
+      for(const f of files){
+        const cell=document.createElement("div"); cell.className="cell"; cell.style.cursor="pointer";
+        const img=document.createElement("img"); img.dataset.src=RP.urlFor(f.fpath); img.alt=f.name; img.loading="lazy";
+        const cap=document.createElement("div"); cap.className="cap"; const nm=document.createElement("span"); nm.className="name"; nm.textContent=f.name; cap.appendChild(nm);
+        cell.appendChild(img); cell.appendChild(cap);
+        cell.onclick=()=>{ box.style.display="none"; loadPhoto(RP.urlFor(f.fpath), f.name); };
+        grid.appendChild(cell); pIO.observe(img);
+      }
+    }catch(e){ grid.innerHTML="<div style='color:#ffb4b4;padding:12px'>List failed: "+e.message+"</div>"; }
+  };
+  $("pickclose").onclick = () => { $("picker").style.display="none"; };
+
+  async function saveToCamera(){
+    if(!photo) return; const [w,h]=engine.size;
+    const base=($("photoName").textContent||"photo").replace(/\.[^.]+$/,"").replace(/[^A-Za-z0-9_-]/g,"_");
+    const look=($("lut").selectedOptions[0]?.textContent||"orig").replace(/[^A-Za-z0-9_-]/g,"");
+    const name=base+"_"+look+".JPG";
+    $("savecam").disabled=true; msg("Rendering + uploading to camera…","wait");
+    try{
+      engine.render(params,w,h); const blob=await engine.toBlob("image/jpeg",0.92); preview();
+      const res=await RP.uploadDeveloped(name, blob);
+      if(res.ok){ msg("Saved to camera → "+res.url+" ("+(blob.size/1048576).toFixed(1)+" MB). Verify on the camera.","ok"); }
+      else{ downloadBlob(blob,name); msg("Camera upload didn't persist (this firmware's HTTP upload looks read-only) — saved "+name+" to your device instead; copy it into DCIM/Developed_Photos over USB.","err"); }
+    }catch(e){ msg("Save to camera failed: "+e.message,"err"); }
+    finally{ $("savecam").disabled=false; }
+  }
+  $("savecam").onclick = saveToCamera;
+
   $("export").onclick = async () => {
     if(!photo) return; const [w,h]=engine.size;
     msg("Rendering full resolution…","wait");
     engine.render(params, w, h);
     const blob = await engine.toBlob("image/jpeg", 0.92);
-    const url=URL.createObjectURL(blob); const a=document.createElement("a");
     const base = ($("photoName").textContent||"photo").replace(/\.[^.]+$/,"");
     const look = $("lut").selectedOptions[0]?.textContent || "orig";
-    a.href=url; a.download = base+"_"+look+".jpg"; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    downloadBlob(blob, base+"_"+look+".jpg");
     preview(); msg("Exported "+w+"×"+h+" JPEG.","ok");
   };
 

@@ -65,6 +65,15 @@
 
   RPDev.DEFAULT_PARAMS = { LUM: 0, CONTRAST: 75, RGAIN: 0, GGAIN: 0, BGAIN: 0, HUE: 0, SAT: 0 };
 
+  // The one rule for the film auto-LUT: a ._FILM working copy whose filename (DCIM<date><NAME>_<seq>)
+  // embeds a slot LUT name. Returns the uppercased LUT name, else null (Original_Film / other folders /
+  // no embedded name). Shared by the gallery (preview + download bake) and Develop (auto-select on load).
+  RPDev.filmLutName = function (fpath, name) {
+    if (!/[\\/]\._FILM[\\/]/.test(fpath || "")) return null;
+    const m = (name || "").match(/^DCIM\d{8}(.+?)_\d+\.[^.]+$/i);
+    return m ? m[1].toUpperCase() : null;
+  };
+
   RPDev.createEngine = function () {
     const cv = document.createElement("canvas");
     const gl = cv.getContext("webgl2", { preserveDrawingBuffer: true });

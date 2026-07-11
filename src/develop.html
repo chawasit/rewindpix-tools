@@ -111,7 +111,7 @@
   const stampFontReady = (document.fonts && document.fonts.load) ? document.fonts.load("700 32px DSEG7").catch(()=>{}) : Promise.resolve();
   stampFontReady.then(()=>{ if(photo) preview(); });
 
-  async function loadPhoto(src, name, meta, film){
+  async function loadPhoto(src, name, meta, autoName){
     busy(true,"Loading photo…"); await paint();
     try{
       const img = await RPDev.load(src);
@@ -119,7 +119,7 @@
       $("export").disabled=false; $("savecam").disabled=false; $("photoName").textContent = name||""; msg(img.naturalWidth+"×"+img.naturalHeight+" loaded.","ok");
       try{ await lutReadyP; }catch(e){}
       if($("lut").value){ $("lut").value=""; $("lut").dispatchEvent(new Event("change")); }   // start clean — no stale look
-      if(film) autoLut(name);                                                                 // auto-apply the film LUT only for ._FILM
+      if(autoName) selectLut(autoName);                                                    // auto-apply the film LUT only for ._FILM
     }catch(e){ msg("Couldn't load photo: "+e.message,"err"); }
     finally{ busy(false); }
   }
@@ -132,11 +132,9 @@
   Object.keys(window.RP_LUTS||{}).sort().forEach(n => addLut(n, window.RP_LUTS[n]));
   RPDev.customLuts.list().forEach(l => addLut(l.name, l.data));    // your uploaded LUTs
   const lutReadyP = fetch("luts/luts.json").then(r=>r.json()).then(d=>{ d.luts.forEach(l => addLut(l.name, "luts/"+l.file)); }).catch(()=>{});
-  // auto-select the LUT whose name is embedded in a camera filename (DCIM<date><NAME>_<seq>) — matches the gallery's auto-preview
-  function autoLut(fname){
-    const m=(fname||"").match(/^DCIM\d{8}(.+?)_\d+\.[^.]+$/i); if(!m) return;
-    const key=m[1].toUpperCase();
-    if(lutSrc[key]!==undefined && $("lut").value!==key){ $("lut").value=key; $("lut").dispatchEvent(new Event("change")); }
+  // select a LUT by name (from RPDev.filmLutName) if it's in the dropdown — matches the gallery's auto-preview
+  function selectLut(key){
+    if(key && lutSrc[key]!==undefined && $("lut").value!==key){ $("lut").value=key; $("lut").dispatchEvent(new Event("change")); }
   }
   $("lut").onchange = async () => {
     const name=$("lut").value;
@@ -199,7 +197,7 @@
   // develop a camera photo handed over from the gallery: ?photo= (multi-file) or window.RP_PICK (single-file SPA)
   const sp = new URLSearchParams(location.search);
   const q = sp.get("photo") || window.RP_PICK, qt = sp.get("t") || window.RP_PICK_TIME || "";
-  if(q){ const film=/[\\/]\._FILM[\\/]/.test(q); window.RP_PICK = null; window.RP_PICK_TIME = null; loadPhoto(RP.urlFor(q), q.split("\\").pop(), qt, film); }
+  if(q){ const name=q.split(/[\\/]/).pop(), autoName=RPDev.filmLutName(q, name); window.RP_PICK = null; window.RP_PICK_TIME = null; loadPhoto(RP.urlFor(q), name, qt, autoName); }
 })();
 </script>
 <script src="nav.js"></script>

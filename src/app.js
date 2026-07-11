@@ -28,7 +28,6 @@
   let selectMode = false; const selected = new Set();
   let _catP = null; const lutCat = () => (_catP || (_catP = (window.RPDev ? RPDev.lutCatalog() : Promise.resolve({}))));
   const isFilm = (fp) => /[\\/]\._FILM[\\/]/.test(fp);
-  const filmName = (name) => { const m = (name || "").match(/^DCIM\d{8}(.+?)_\d+\.[^.]+$/i); return m ? m[1].toUpperCase() : null; };
   const exPickReq = () => { try { return sessionStorage.getItem("rp_expick_req") === "1"; } catch (e) { return false; } };
   function pickExample(f) { try { sessionStorage.setItem("rp_expick", f.fpath); sessionStorage.setItem("rp_expick_name", f.name); sessionStorage.removeItem("rp_expick_req"); } catch (e) {} if (window.RP_SPA) location.hash = "#presets"; else location.href = "presets.html"; }
   let _devEng = null;
@@ -48,7 +47,7 @@
   let _dlEng = null;
   async function filmBlob(f) {
     const raw = await RP.downloadBlob(f.fpath);
-    const fn = isFilm(f.fpath) ? filmName(f.name) : null;
+    const fn = RPDev.filmLutName(f.fpath, f.name);
     if (!fn) return raw;
     const cat = await lutCat(); if (!cat[fn]) return raw;                 // no catalog LUT for this film name -> raw
     // a catalog LUT exists for this film name -> we MUST bake it; a failure here is a real error,
@@ -69,7 +68,7 @@
   function pump() { while (active < 1 && q.length) { const img = q.shift(); active++; loadThumb(img).finally(() => { active--; pump(); }); } }
   async function loadThumb(img) {
     const cell = img.parentElement, fp = img.dataset.fp, film = isFilm(fp);
-    const fn = film ? filmName(fp.split(/[\\/]/).pop()) : null;
+    const fn = RPDev.filmLutName(fp, fp.split(/[\\/]/).pop());
     try {
       let developed = false, url = fn ? cacheGet("dev:" + fp) : null;
       if (url) developed = true; else url = cacheGet("thumb:" + fp);

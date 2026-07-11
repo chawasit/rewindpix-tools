@@ -43,6 +43,27 @@
       return _devEng.canvas.toDataURL("image/jpeg", 0.7);
     } catch (e) { return null; } finally { if (photo.close) photo.close(); }
   }
+  // full-res: bake a ._FILM frame's filename LUT into its download (matches the gallery preview). Everything
+  // else — Original_Film, In_Camera_Mode, or a name with no catalog LUT — returns the raw camera JPEG.
+  let _dlEng = null;
+  async function filmBlob(f) {
+    const raw = await RP.downloadBlob(f.fpath);
+    const fn = isFilm(f.fpath) ? filmName(f.name) : null;
+    if (!fn) return raw;
+    const cat = await lutCat(); if (!cat[fn]) return raw;                 // no catalog LUT for this film name -> raw
+    // a catalog LUT exists for this film name -> we MUST bake it; a failure here is a real error,
+    // never a silent raw fallback (that would deliver an unprocessed file under a film filename)
+    const photo = await createImageBitmap(raw);
+    try {
+      const lut = await RPDev.load(cat[fn]);
+      if (!_dlEng) _dlEng = RPDev.createEngine();                          // separate engine — thumb renders never race its canvas
+      _dlEng.setPhoto(photo); _dlEng.setLut(lut);
+      _dlEng.render(RPDev.DEFAULT_PARAMS, photo.width, photo.height);
+      const out = await _dlEng.toBlob("image/jpeg", 0.92);
+      if (!out) throw new Error("JPEG encode failed");
+      return out;
+    } finally { if (photo.close) photo.close(); }
+  }
   // ---- lazy loader → localStorage cache (downscaled data URLs). ONE image at a time; skeleton until ready ----
   let active = 0; const q = [];
   function pump() { while (active < 1 && q.length) { const img = q.shift(); active++; loadThumb(img).finally(() => { active--; pump(); }); } }
@@ -72,7 +93,7 @@
   async function download(fpath, name, btn) {
     const prev = btn.textContent; btn.textContent = "…"; btn.disabled = true;
     try {
-      const blob = await RP.downloadBlob(fpath);
+      const f = allFiles.find((x) => x.fpath === fpath) || { fpath, name }; const blob = await filmBlob(f);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click();
       a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -91,7 +112,7 @@
         const f = files[i];
         btn.textContent = "ZIP " + (i + 1) + "/" + files.length;
         msg("Zipping " + (i + 1) + "/" + files.length + ": " + f.name + " …", "wait");
-        const blob = await RP.downloadBlob(f.fpath);   // serialized through the single-client queue
+        const blob = await filmBlob(f);   // ._FILM frames get their LUT baked in; others raw (single-client queue)
         entries.push({ name: f.folder + "/" + f.name, bytes: new Uint8Array(await blob.arrayBuffer()) });
       }
       msg("Packaging " + entries.length + " photos…", "wait");
@@ -251,11 +272,11 @@
     try {
       if (zip) {
         const entries = [];
-        for (let i = 0; i < files.length; i++) { const f = files[i]; msg("Zipping " + (i + 1) + "/" + files.length + ": " + f.name + "…", "wait"); const blob = await RP.downloadBlob(f.fpath); entries.push({ name: f.folder + "/" + f.name, bytes: new Uint8Array(await blob.arrayBuffer()) }); }
+        for (let i = 0; i < files.length; i++) { const f = files[i]; msg("Zipping " + (i + 1) + "/" + files.length + ": " + f.name + "…", "wait"); const blob = await filmBlob(f); entries.push({ name: f.folder + "/" + f.name, bytes: new Uint8Array(await blob.arrayBuffer()) }); }
         const url = URL.createObjectURL(RPZip.build(entries)); const a = document.createElement("a"); a.href = url; a.download = "rewindpix-" + new Date().toISOString().slice(0, 10) + ".zip"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 8000);
         msg("Downloaded " + files.length + " photo(s) as a ZIP.", "ok");
       } else {
-        for (let i = 0; i < files.length; i++) { const f = files[i]; msg("Downloading " + (i + 1) + "/" + files.length + ": " + f.name + "…", "wait"); const blob = await RP.downloadBlob(f.fpath); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 8000); await new Promise((r) => setTimeout(r, 400)); }
+        for (let i = 0; i < files.length; i++) { const f = files[i]; msg("Downloading " + (i + 1) + "/" + files.length + ": " + f.name + "…", "wait"); const blob = await filmBlob(f); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 8000); await new Promise((r) => setTimeout(r, 400)); }
         msg("Downloaded " + files.length + " file(s) individually.", "ok");
       }
       RP.markSeen(files.map((f) => f.fpath)); exitSelect();

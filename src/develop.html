@@ -111,13 +111,15 @@
   const stampFontReady = (document.fonts && document.fonts.load) ? document.fonts.load("700 32px DSEG7").catch(()=>{}) : Promise.resolve();
   stampFontReady.then(()=>{ if(photo) preview(); });
 
-  async function loadPhoto(src, name, meta){
+  async function loadPhoto(src, name, meta, film){
     busy(true,"Loading photo…"); await paint();
     try{
       const img = await RPDev.load(src);
       photo = img; ensureEngine(); engine.setPhoto(img); grainSeed = Math.random() * 100; $("stampText").value = dateFromName(name, meta); preview();
       $("export").disabled=false; $("savecam").disabled=false; $("photoName").textContent = name||""; msg(img.naturalWidth+"×"+img.naturalHeight+" loaded.","ok");
-      try{ await lutReadyP; }catch(e){} autoLut(name);
+      try{ await lutReadyP; }catch(e){}
+      if($("lut").value){ $("lut").value=""; $("lut").dispatchEvent(new Event("change")); }   // start clean — no stale look
+      if(film) autoLut(name);                                                                 // auto-apply the film LUT only for ._FILM
     }catch(e){ msg("Couldn't load photo: "+e.message,"err"); }
     finally{ busy(false); }
   }
@@ -197,7 +199,7 @@
   // develop a camera photo handed over from the gallery: ?photo= (multi-file) or window.RP_PICK (single-file SPA)
   const sp = new URLSearchParams(location.search);
   const q = sp.get("photo") || window.RP_PICK, qt = sp.get("t") || window.RP_PICK_TIME || "";
-  if(q){ window.RP_PICK = null; window.RP_PICK_TIME = null; loadPhoto(RP.urlFor(q), q.split("\\").pop(), qt); }
+  if(q){ const film=/[\\/]\._FILM[\\/]/.test(q); window.RP_PICK = null; window.RP_PICK_TIME = null; loadPhoto(RP.urlFor(q), q.split("\\").pop(), qt, film); }
 })();
 </script>
 <script src="nav.js"></script>

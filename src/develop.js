@@ -84,14 +84,17 @@
     const U = (n) => gl.getUniformLocation(prog, n);
     gl.uniform1i(U("img"), 0); gl.uniform1i(U("lut"), 1);
 
-    let photoW = 0, photoH = 0, edge = 0, hasLut = 0;
+    let photoW = 0, photoH = 0, edge = 0, hasLut = 0, photoTex = null, lutTex = null;
 
     function setPhoto(img) {
       photoW = img.naturalWidth || img.width; photoH = img.naturalHeight || img.height;
-      gl.activeTexture(gl.TEXTURE0); const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.activeTexture(gl.TEXTURE0);
+      if (!photoTex) {                                       // create once, then re-upload — never leak a texture per call
+        photoTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, photoTex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      } else gl.bindTexture(gl.TEXTURE_2D, photoTex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     }
     function setLut(img) {
       if (!img) { hasLut = 0; return; }
@@ -101,10 +104,13 @@
       edge = Math.round(Math.cbrt(c.width * c.height));
       const N = edge * edge * edge, cube = new Uint8Array(N * 3);
       for (let i = 0; i < N; i++) { cube[i * 3] = px[i * 4]; cube[i * 3 + 1] = px[i * 4 + 1]; cube[i * 3 + 2] = px[i * 4 + 2]; }
-      gl.activeTexture(gl.TEXTURE1); const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_3D, t);
+      gl.activeTexture(gl.TEXTURE1);
+      if (!lutTex) {                                         // create once, then re-upload
+        lutTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_3D, lutTex);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        for (const p of ["TEXTURE_WRAP_S", "TEXTURE_WRAP_T", "TEXTURE_WRAP_R"]) gl.texParameteri(gl.TEXTURE_3D, gl[p], gl.CLAMP_TO_EDGE);
+      } else gl.bindTexture(gl.TEXTURE_3D, lutTex);
       gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGB8, edge, edge, edge, 0, gl.RGB, gl.UNSIGNED_BYTE, cube);
-      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      for (const p of ["TEXTURE_WRAP_S", "TEXTURE_WRAP_T", "TEXTURE_WRAP_R"]) gl.texParameteri(gl.TEXTURE_3D, gl[p], gl.CLAMP_TO_EDGE);
       hasLut = 1;
     }
     function render(params, outW, outH) {

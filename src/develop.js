@@ -18,6 +18,7 @@
   in vec2 uv; out vec4 o;
   uniform sampler2D img; uniform sampler3D lut; uniform float edge; uniform int useLut;
   uniform float lum, con, rg, gg, bg, hue, sat;
+  uniform float denoise, grain, seed; uniform vec2 texel;
   vec3 hueRotate(vec3 col, float a){
     float c=cos(a), s=sin(a);
     vec3 rr=vec3(0.213+0.787*c-0.213*s, 0.715-0.715*c-0.715*s, 0.072-0.072*c+0.928*s);
@@ -25,8 +26,20 @@
     vec3 bb=vec3(0.213-0.213*c-0.787*s, 0.715-0.715*c+0.715*s, 0.072+0.928*c+0.072*s);
     return vec3(dot(col,rr), dot(col,gg2), dot(col,bb));
   }
+  vec3 samp(vec2 t){ return texture(img, vec2(t.x, 1.0-t.y)).rgb; }
+  float hash21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
   void main(){
-    vec3 c = texture(img, vec2(uv.x, 1.0-uv.y)).rgb;
+    vec3 c = samp(uv);
+    if(denoise>0.0){                                       // edge-preserving 3x3 bilateral blend
+      float amt=denoise/100.0; vec3 sum=c; float wsum=1.0;
+      for(int dy=-1;dy<=1;dy++) for(int dx=-1;dx<=1;dx++){
+        if(dx==0&&dy==0) continue;
+        vec3 n=samp(uv+vec2(float(dx),float(dy))*texel);
+        float w=1.0-clamp(length(n-c)*3.0,0.0,1.0);        // similar colours weigh more (keeps edges)
+        sum+=n*w; wsum+=w;
+      }
+      c=mix(c,sum/wsum,amt);
+    }
     if(useLut==1){ vec3 s3=(c*(edge-1.0)+0.5)/edge; c = texture(lut, s3).rgb; }
     c *= vec3(1.0+rg/128.0, 1.0+gg/128.0, 1.0+bg/128.0);   // per-channel gain (0 neutral)
     c = (c-0.5)*(con/75.0)+0.5;                            // contrast (75 neutral)
@@ -35,6 +48,11 @@
     c = hueRotate(c, hue/100.0*0.6);                       // hue
     float L = dot(c, vec3(0.299,0.587,0.114));
     c = mix(vec3(L), c, 1.0+sat/100.0);                    // saturation (0 neutral, -100 = mono)
+    c = clamp(c,0.0,1.0);
+    if(grain>0.0){                                         // monochrome film grain, per source pixel
+      float g = hash21(floor(uv/texel) + vec2(seed));
+      c += (g-0.5)*(grain/100.0)*0.18;
+    }
     o = vec4(clamp(c,0.0,1.0), 1.0);
   }`;
 
@@ -89,6 +107,8 @@
       gl.uniform1f(U("lum"), p.LUM); gl.uniform1f(U("con"), p.CONTRAST);
       gl.uniform1f(U("rg"), p.RGAIN); gl.uniform1f(U("gg"), p.GGAIN); gl.uniform1f(U("bg"), p.BGAIN);
       gl.uniform1f(U("hue"), p.HUE); gl.uniform1f(U("sat"), p.SAT);
+      gl.uniform1f(U("denoise"), p.DENOISE || 0); gl.uniform1f(U("grain"), p.GRAIN || 0);
+      gl.uniform2f(U("texel"), 1.0 / (photoW || cv.width || 1), 1.0 / (photoH || cv.height || 1)); gl.uniform1f(U("seed"), Math.random() * 100.0);
       gl.viewport(0, 0, cv.width, cv.height); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.finish();
     }
     const toBlob = (type, q) => new Promise((res) => cv.toBlob(res, type || "image/jpeg", q == null ? 0.92 : q));

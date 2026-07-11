@@ -52,6 +52,13 @@
       <label class="filebtn" style="margin-top:8px"><button id="lutupbtn" style="width:100%">＋ Upload LUT (HALD .png)</button>
         <input id="lutfile" type="file" accept="image/png" hidden></label>
       <div id="sliders"></div>
+      <label style="margin-top:16px">Post-process</label>
+      <label>Denoise <span class="val" id="v_DENOISE">0</span></label>
+      <input type="range" id="s_DENOISE" min="0" max="100" step="1" value="0">
+      <label>Film grain <span class="val" id="v_GRAIN">0</span></label>
+      <input type="range" id="s_GRAIN" min="0" max="100" step="1" value="0">
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;margin-top:12px"><input type="checkbox" id="stampOn" style="width:auto;margin:0"> Date stamp (burned in)</label>
+      <input type="text" id="stampText" placeholder="YYYY-MM-DD" style="width:100%;padding:8px;border-radius:9px;border:1px solid #2a2f37;background:#14181d;color:#ff9a3c;font-family:ui-monospace,Menlo,monospace">
       <button id="reset" style="margin-top:14px">Reset params</button>
     </div>
   </div>
@@ -68,7 +75,9 @@
     {k:"HUE",min:-100,max:100},{k:"SAT",min:-100,max:100},
   ];
   const params = Object.assign({}, RPDev.DEFAULT_PARAMS);
-  let engine, photo = null, lutImg = null;
+  const post = { DENOISE: 0, GRAIN: 0 };
+  const merged = () => Object.assign({}, params, post);
+  let engine, view = null, photo = null, lutImg = null;
   function msg(t,k){ const m=$("msg"); m.textContent=t; m.className="msg show "+(k||"wait"); }
   const paint = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   function busy(on, t){ const b=$("busy"); if(b){ b.style.display = on ? "flex" : "none"; if(t) $("busytxt").textContent=t; } }
@@ -78,17 +87,23 @@
     `<label>${f.k}<span class="val" id="v_${f.k}">${params[f.k]}</span></label>
      <input type="range" id="s_${f.k}" min="${f.min}" max="${f.max}" step="1" value="${params[f.k]}">`).join("");
   FIELDS.forEach(f => { const s=$("s_"+f.k); s.oninput=()=>{ params[f.k]=+s.value; $("v_"+f.k).textContent=s.value; preview(); }; });
-  $("reset").onclick = () => { Object.assign(params, RPDev.DEFAULT_PARAMS); FIELDS.forEach(f=>{ $("s_"+f.k).value=params[f.k]; $("v_"+f.k).textContent=params[f.k]; }); preview(); };
+  $("reset").onclick = () => { Object.assign(params, RPDev.DEFAULT_PARAMS); FIELDS.forEach(f=>{ $("s_"+f.k).value=params[f.k]; $("v_"+f.k).textContent=params[f.k]; }); ["DENOISE","GRAIN"].forEach(k=>{ post[k]=0; $("s_"+k).value=0; $("v_"+k).textContent=0; }); preview(); };
+  ["DENOISE","GRAIN"].forEach(k => { const s=$("s_"+k); s.oninput=()=>{ post[k]=+s.value; $("v_"+k).textContent=s.value; preview(); }; });
+  $("stampOn").onchange = preview; $("stampText").oninput = preview;
 
-  function ensureEngine(){ if(!engine){ engine = RPDev.createEngine(); const p=$("preview"); p.innerHTML=""; p.appendChild(engine.canvas); } }
+  function ensureEngine(){ if(!engine){ engine = RPDev.createEngine(); view = document.createElement("canvas"); const p=$("preview"); p.innerHTML=""; p.appendChild(view); } }
   function previewDims(){ const [w,h]=engine.size; const W=Math.min(1000,w); return [W, Math.round(W*h/w)]; }
-  function preview(){ if(!photo) return; ensureEngine(); const [pw,ph]=previewDims(); engine.render(params,pw,ph); }
+  function preview(){ if(!photo) return; ensureEngine(); const [pw,ph]=previewDims(); engine.render(merged(),pw,ph); draw2d(view,pw,ph); }
+  function draw2d(t,w,h){ t.width=w; t.height=h; const cx=t.getContext("2d"); cx.drawImage(engine.canvas,0,0,w,h); if($("stampOn").checked){ const s=($("stampText").value||"").trim(); if(s) drawStamp(cx,w,h,s); } }
+  function exportCanvas(w,h){ const o=document.createElement("canvas"); draw2d(o,w,h); return o; }
+  function drawStamp(cx,w,h,text){ const fs=Math.max(12,Math.round(h*0.038)); cx.save(); cx.font="700 "+fs+"px ui-monospace, Menlo, monospace"; cx.textAlign="right"; cx.textBaseline="alphabetic"; const pad=Math.round(fs*0.7); cx.shadowColor="rgba(0,0,0,.6)"; cx.shadowBlur=fs*0.3; cx.shadowOffsetX=1; cx.shadowOffsetY=1; cx.fillStyle="#ff9a3c"; cx.fillText(text,w-pad,h-pad); cx.restore(); }
+  function dateFromName(name){ const m=(name||"").match(/^DCIM(\d{2})(\d{2})(\d{4})/); if(m) return m[3]+"-"+m[1]+"-"+m[2]; const d=new Date(),p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
 
   async function loadPhoto(src, name){
     busy(true,"Loading photo…"); await paint();
     try{
       const img = await RPDev.load(src);
-      photo = img; ensureEngine(); engine.setPhoto(img); preview();
+      photo = img; ensureEngine(); engine.setPhoto(img); $("stampText").value = dateFromName(name); preview();
       $("export").disabled=false; $("savecam").disabled=false; $("photoName").textContent = name||""; msg(img.naturalWidth+"×"+img.naturalHeight+" loaded.","ok");
       try{ await lutReadyP; }catch(e){} autoLut(name);
     }catch(e){ msg("Couldn't load photo: "+e.message,"err"); }
@@ -144,7 +159,7 @@
     const name=base+"_"+look+".JPG";
     $("savecam").disabled=true; busy(true,"Rendering…"); await paint(); msg("Rendering + uploading to camera…","wait");
     try{
-      engine.render(params,w,h); const blob=await engine.toBlob("image/jpeg",0.92); preview();
+      engine.render(merged(),w,h); const blob=await new Promise(r=>exportCanvas(w,h).toBlob(r,"image/jpeg",0.92)); preview();
       busy(true,"Uploading to camera…");
       const res=await RP.uploadDeveloped(name, blob);
       if(res.ok){ msg("Saved to camera → "+res.url+" ("+(res.size/1024).toFixed(0)+" KB on the SD). It re-serves over WiFi after a camera re-index / power-cycle.","ok"); }
@@ -158,8 +173,8 @@
     if(!photo) return; const [w,h]=engine.size;
     busy(true,"Rendering "+w+"×"+h+"…"); await paint();
     try{
-      engine.render(params, w, h);
-      const blob = await engine.toBlob("image/jpeg", 0.92);
+      engine.render(merged(), w, h);
+      const blob = await new Promise(r => exportCanvas(w,h).toBlob(r,"image/jpeg",0.92));
       const base = ($("photoName").textContent||"photo").replace(/\.[^.]+$/,"");
       const look = $("lut").selectedOptions[0]?.textContent || "orig";
       downloadBlob(blob, base+"_"+look+".jpg");

@@ -122,7 +122,7 @@
     v.querySelector(".v-x").onclick = closeViewer;
     v.querySelector(".v-prev").onclick = () => vStep(-1);
     v.querySelector(".v-next").onclick = () => vStep(1);
-    v.querySelector(".v-dev").onclick = () => { const f = vFiles[vIdx]; closeViewer(); if (window.RP_SPA) { window.RP_PICK = f.fpath; location.hash = "#develop"; } else location.href = "develop.html?photo=" + encodeURIComponent(f.fpath); };
+    v.querySelector(".v-dev").onclick = () => { const f = vFiles[vIdx]; closeViewer(); if (window.RP_SPA) { window.RP_PICK = f.fpath; window.RP_PICK_TIME = f.time || ""; location.hash = "#develop"; } else location.href = "develop.html?photo=" + encodeURIComponent(f.fpath) + (f.time ? "&t=" + encodeURIComponent(f.time) : ""); };
     v.querySelector(".v-dl").onclick = (e) => download(vFiles[vIdx].fpath, vFiles[vIdx].name, e.currentTarget);
     let x0 = null, y0 = null; const stage = v.querySelector(".v-stage");
     stage.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });

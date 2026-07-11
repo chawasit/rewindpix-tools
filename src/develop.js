@@ -53,7 +53,7 @@
     float L = dot(c, vec3(0.299,0.587,0.114));
     c = mix(vec3(L), c, 1.0+sat/100.0);                    // saturation (0 neutral, -100 = mono)
     c = clamp(c,0.0,1.0);
-    if(grain>0.0){                                         // film grain: 3D value noise (seed = shifting/time dim),
+    if(grain>0.0){                                         // film grain: 3D value noise (seed = static per-photo offset),
       vec2 gp = floor(uv/texel)/1.5;                       // per-channel = analog dye clouds, masked to mid-tones
       vec3 n = vec3(vnoise(vec3(gp, seed)), vnoise(vec3(gp, seed+19.7)), vnoise(vec3(gp, seed+43.1))) - 0.5;
       float Lg = dot(c, vec3(0.299,0.587,0.114));

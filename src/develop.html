@@ -78,7 +78,7 @@
   ];
   const params = Object.assign({}, RPDev.DEFAULT_PARAMS);
   const post = { DENOISE: 0, GRAIN: 0 };
-  let grainSeed = Math.random() * 100, grainRAF = 0, grainLast = 0;
+  let grainSeed = Math.random() * 100;
   const merged = () => Object.assign({}, params, post, { SEED: grainSeed });
   let engine, view = null, photo = null, lutImg = null;
   function msg(t,k){ const m=$("msg"); m.textContent=t; m.className="msg show "+(k||"wait"); }
@@ -91,7 +91,7 @@
      <input type="range" id="s_${f.k}" min="${f.min}" max="${f.max}" step="1" value="${params[f.k]}">`).join("");
   FIELDS.forEach(f => { const s=$("s_"+f.k); s.oninput=()=>{ params[f.k]=+s.value; $("v_"+f.k).textContent=s.value; preview(); }; });
   $("reset").onclick = () => { Object.assign(params, RPDev.DEFAULT_PARAMS); FIELDS.forEach(f=>{ $("s_"+f.k).value=params[f.k]; $("v_"+f.k).textContent=params[f.k]; }); ["DENOISE","GRAIN"].forEach(k=>{ post[k]=0; $("s_"+k).value=0; $("v_"+k).textContent=0; }); preview(); };
-  ["DENOISE","GRAIN"].forEach(k => { const s=$("s_"+k); s.oninput=()=>{ post[k]=+s.value; $("v_"+k).textContent=s.value; preview(); if(k==="GRAIN"){ post.GRAIN>0 ? startGrain() : stopGrain(); } }; });
+  ["DENOISE","GRAIN"].forEach(k => { const s=$("s_"+k); s.oninput=()=>{ post[k]=+s.value; $("v_"+k).textContent=s.value; preview(); }; });
   $("stampOn").onchange = preview; $("stampText").oninput = preview;
 
   function ensureEngine(){ if(!engine){ engine = RPDev.createEngine(); view = document.createElement("canvas"); const p=$("preview"); p.innerHTML=""; p.appendChild(view); } }
@@ -108,10 +108,6 @@
     const p=n=>String(n).padStart(2,"0"), d=new Date();
     return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());  // genuine "now"
   }
-  // animated film grain: throttled RAF (~14fps) shifting the noise seed while Develop is visible + grain>0
-  function grainLoop(t){ grainRAF=0; if(!photo||post.GRAIN<=0||!document.body.contains(view)) return; if(t-grainLast>70){ grainLast=t; grainSeed=(grainSeed+1.7)%1000; const [pw,ph]=previewDims(); engine.render(merged(),pw,ph); draw2d(view,pw,ph); } grainRAF=requestAnimationFrame(grainLoop); }
-  function startGrain(){ if(!grainRAF && photo && post.GRAIN>0 && view) grainRAF=requestAnimationFrame(grainLoop); }
-  function stopGrain(){ if(grainRAF){ cancelAnimationFrame(grainRAF); grainRAF=0; } }
   const stampFontReady = (document.fonts && document.fonts.load) ? document.fonts.load("700 32px DSEG7").catch(()=>{}) : Promise.resolve();
   stampFontReady.then(()=>{ if(photo) preview(); });
 
@@ -119,7 +115,7 @@
     busy(true,"Loading photo…"); await paint();
     try{
       const img = await RPDev.load(src);
-      photo = img; ensureEngine(); engine.setPhoto(img); $("stampText").value = dateFromName(name, meta); preview(); if(post.GRAIN>0) startGrain();
+      photo = img; ensureEngine(); engine.setPhoto(img); grainSeed = Math.random() * 100; $("stampText").value = dateFromName(name, meta); preview();
       $("export").disabled=false; $("savecam").disabled=false; $("photoName").textContent = name||""; msg(img.naturalWidth+"×"+img.naturalHeight+" loaded.","ok");
       try{ await lutReadyP; }catch(e){} autoLut(name);
     }catch(e){ msg("Couldn't load photo: "+e.message,"err"); }
@@ -175,13 +171,13 @@
     const name=base+"_"+look+".JPG";
     $("savecam").disabled=true; busy(true,"Rendering…"); await paint(); msg("Rendering + uploading to camera…","wait");
     try{
-      stopGrain(); await stampFontReady; engine.render(merged(),w,h); const blob=await new Promise(r=>exportCanvas(w,h).toBlob(r,"image/jpeg",0.92)); preview();
+      await stampFontReady; engine.render(merged(),w,h); const blob=await new Promise(r=>exportCanvas(w,h).toBlob(r,"image/jpeg",0.92)); preview();
       busy(true,"Uploading to camera…");
       const res=await RP.uploadDeveloped(name, blob);
       if(res.ok){ msg("Saved to camera → "+res.url+" ("+(res.size/1024).toFixed(0)+" KB on the SD). It re-serves over WiFi after a camera re-index / power-cycle.","ok"); }
       else{ downloadBlob(blob,name); msg("Couldn't confirm the camera write — saved "+name+" to your device instead; copy it into DCIM/Developed_Photos over USB.","err"); }
     }catch(e){ msg("Save to camera failed: "+e.message,"err"); }
-    finally{ $("savecam").disabled=false; busy(false); if(post.GRAIN>0) startGrain(); }
+    finally{ $("savecam").disabled=false; busy(false); }
   }
   $("savecam").onclick = saveToCamera;
 
@@ -189,13 +185,13 @@
     if(!photo) return; const [w,h]=engine.size;
     busy(true,"Rendering "+w+"×"+h+"…"); await paint();
     try{
-      stopGrain(); await stampFontReady; engine.render(merged(), w, h);
+      await stampFontReady; engine.render(merged(), w, h);
       const blob = await new Promise(r => exportCanvas(w,h).toBlob(r,"image/jpeg",0.92));
       const base = ($("photoName").textContent||"photo").replace(/\.[^.]+$/,"");
       const look = $("lut").selectedOptions[0]?.textContent || "orig";
       downloadBlob(blob, base+"_"+look+".jpg");
       preview(); msg("Exported "+w+"×"+h+" JPEG.","ok");
-    } finally { busy(false); if(post.GRAIN>0) startGrain(); }
+    } finally { busy(false); }
   };
 
   // develop a camera photo handed over from the gallery: ?photo= (multi-file) or window.RP_PICK (single-file SPA)

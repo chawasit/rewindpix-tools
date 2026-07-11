@@ -2,16 +2,28 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   const statusEl = $("status"), msgEl = $("msg"), galleryEl = $("gallery");
+  let disposed = false, thumbEpoch = 0;
 
   function msg(text, kind) { msgEl.textContent = text; msgEl.className = "msg show " + (kind || "wait"); }
   function clearMsg() { msgEl.className = "msg"; }
 
 
-  // ---- localStorage thumbnail cache (downscaled data URLs; raw "thumb:" + developed "dev:" keys) ----
+  // ---- localStorage thumbnail cache (downscaled data URLs; metadata-qualified raw/developed keys) ----
   function cacheGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
   function cachePut(key, url) {
     try { localStorage.setItem(key, url); }
     catch (e) { try { Object.keys(localStorage).filter((k) => /^(thumb|dev):/.test(k)).forEach((k) => localStorage.removeItem(k)); localStorage.setItem(key, url); } catch (e2) {} }
+  }
+  function thumbCacheKeys(f, lutName) {
+    const version = f.fpath + "|" + f.size + "|" + f.timecode;
+    return { raw: "thumb:" + version, developed: lutName ? "dev:" + version + "|" + lutName + "|r" + ((window.RPDev && RPDev.customLuts) ? RPDev.customLuts.rev() : "0") : null };
+  }
+  function dropObsoleteThumbCache(fpath, keep) {
+    try {
+      Object.keys(localStorage).forEach((key) => {
+        if ((key === "thumb:" + fpath || key === "dev:" + fpath || key.startsWith("thumb:" + fpath + "|") || key.startsWith("dev:" + fpath + "|")) && !keep.has(key)) localStorage.removeItem(key);
+      });
+    } catch (e) {}
   }
   async function downscaleURL(blob) {
     let bmp; try { bmp = await createImageBitmap(blob); } catch (e) { return null; }
@@ -65,27 +77,31 @@
   }
   // ---- lazy loader → localStorage cache (downscaled data URLs). ONE image at a time; skeleton until ready ----
   let active = 0; const q = [];
-  function pump() { while (active < 1 && q.length) { const img = q.shift(); active++; loadThumb(img).finally(() => { active--; pump(); }); } }
+  function pump() { while (!disposed && active < 1 && q.length) { const img = q.shift(); if (!img.isConnected) continue; active++; loadThumb(img).finally(() => { active--; pump(); }); } }
   async function loadThumb(img) {
-    const cell = img.parentElement, fp = img.dataset.fp, film = isFilm(fp);
+    const token = thumbEpoch, cell = img.parentElement, fp = img.dataset.fp, film = isFilm(fp);
+    const file = { fpath: fp, size: +img.dataset.size, timecode: +img.dataset.timecode };
     const fn = RPDev.filmLutName(fp, fp.split(/[\\/]/).pop());
+    const keys = thumbCacheKeys(file, fn), keep = new Set([keys.raw]); if (keys.developed) keep.add(keys.developed);
+    dropObsoleteThumbCache(fp, keep);
+    const stale = () => disposed || token !== thumbEpoch || !img.isConnected;
     try {
-      let developed = false, url = fn ? cacheGet("dev:" + fp) : null;
-      if (url) developed = true; else url = cacheGet("thumb:" + fp);
+      let developed = false, url = keys.developed ? cacheGet(keys.developed) : null;
+      if (url) developed = true; else url = cacheGet(keys.raw);
       if (!url) {
-        const res = await fetch(RP.urlFor(fp), { cache: "force-cache" }); if (!res.ok) throw 0;
-        const blob = await res.blob();
-        if (fn) { const cat = await lutCat(); if (cat[fn]) { url = await developURL(blob, cat[fn]); if (url) { developed = true; cachePut("dev:" + fp, url); } } }
-        if (!url) { url = await downscaleURL(blob); if (url) cachePut("thumb:" + fp, url); }
-        if (!url) throw 0;
+        if (stale()) return; const blob = await RP.imageBlob(fp, () => !stale()); if (stale()) return;
+        if (fn) { const cat = await lutCat(); if (stale()) return; if (cat[fn]) { url = await developURL(blob, cat[fn]); if (stale()) return; if (url) { developed = true; cachePut(keys.developed, url); } } }
+        if (!url) { url = await downscaleURL(blob); if (stale()) return; if (url) cachePut(keys.raw, url); }
+        if (!url) throw new Error("thumbnail decode failed");
       }
+      if (stale()) return;
       if (film && !developed) { const r = document.createElement("span"); r.className = "rawbadge"; r.textContent = "RAW"; cell.appendChild(r); }
-      img.onload = () => { cell.classList.remove("loading"); cell.classList.add("ready"); };
-      img.onerror = () => { cell.classList.remove("loading"); cell.classList.add("thumb-fail"); };
+      img.onload = () => { if (!stale()) { cell.classList.remove("loading"); cell.classList.add("ready"); } };
+      img.onerror = () => { if (!stale()) { cell.classList.remove("loading"); cell.classList.add("thumb-fail"); } };
       img.src = url;
-    } catch (e) { cell.classList.remove("loading"); cell.classList.add("thumb-fail"); }
+    } catch (e) { if (!stale()) { cell.classList.remove("loading"); cell.classList.add("thumb-fail"); } }
   }
-  const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { io.unobserve(e.target); q.push(e.target); pump(); } }, { rootMargin: "300px" });
+  const io = new IntersectionObserver((es) => { if (disposed) return; for (const e of es) if (e.isIntersecting) { io.unobserve(e.target); q.push(e.target); pump(); } }, { rootMargin: "300px" });
 
   function fmtBytes(n) { return n >= 1e6 ? (n / 1048576).toFixed(1) + " MB" : (n / 1024).toFixed(0) + " KB"; }
 
@@ -127,7 +143,11 @@
   }
 
   // ---- fullscreen mobile photo viewer (lightbox) ----
-  let vFiles = [], vIdx = 0, viewerEl = null, vImg, vName, vCount, vSpin;
+  let vFiles = [], vIdx = 0, viewerEl = null, vImg, vName, vCount, vSpin, vObjectUrl = null, vLoadToken = 0;
+  function releaseViewerImage() {
+    if (vImg) vImg.removeAttribute("src");
+    if (vObjectUrl) { URL.revokeObjectURL(vObjectUrl); vObjectUrl = null; }
+  }
   function buildViewer() {
     if (viewerEl) return viewerEl;
     const old = document.getElementById("rp-viewer"); if (old) old.remove();
@@ -150,10 +170,18 @@
     return v;
   }
   function vKey(e) { if (e.key === "Escape") closeViewer(); else if (e.key === "ArrowLeft") vStep(-1); else if (e.key === "ArrowRight") vStep(1); }
-  function vShow() { const f = vFiles[vIdx]; vSpin.style.display = "block"; vSpin.textContent = "Loading…"; vImg.src = RP.urlFor(f.fpath); vName.textContent = f.name; vCount.textContent = (vIdx + 1) + " / " + vFiles.length; }
+  async function vShow() {
+    const token = ++vLoadToken, f = vFiles[vIdx]; releaseViewerImage();
+    vSpin.style.display = "block"; vSpin.textContent = "Loading…"; vName.textContent = f.name; vCount.textContent = (vIdx + 1) + " / " + vFiles.length;
+    try {
+      const blob = await RP.imageBlob(f.fpath, () => !disposed && token === vLoadToken && viewerEl && viewerEl.classList.contains("open"));
+      if (disposed || token !== vLoadToken || !viewerEl || !viewerEl.classList.contains("open")) return;
+      vObjectUrl = URL.createObjectURL(blob); vImg.src = vObjectUrl;
+    } catch (e) { if (!disposed && token === vLoadToken) vSpin.textContent = "Failed to load"; }
+  }
   function vStep(d) { vIdx = (vIdx + d + vFiles.length) % vFiles.length; vShow(); }
-  function openViewer(files, i) { buildViewer(); vFiles = files; vIdx = i; vShow(); viewerEl.classList.add("open"); document.addEventListener("keydown", vKey); }
-  function closeViewer() { if (viewerEl) viewerEl.classList.remove("open"); document.removeEventListener("keydown", vKey); }
+  function openViewer(files, i) { buildViewer(); vFiles = files; vIdx = i; viewerEl.classList.add("open"); document.addEventListener("keydown", vKey); vShow(); }
+  function closeViewer() { vLoadToken++; releaseViewerImage(); if (viewerEl) viewerEl.classList.remove("open"); document.removeEventListener("keydown", vKey); }
 
   function filtered() {
     let list;
@@ -177,6 +205,7 @@
     [["all", "All time"], ["today", "Today"], ["7d", "7 days"], ["30d", "30 days"]].forEach(([k, l]) => tb.appendChild(chip(l, curFilter === k, () => { curFilter = k; shown = PAGE; renderControls(); renderPage(); })));
   }
   function renderPage() {
+    thumbEpoch++; q.length = 0;
     const seen = RP.seen(), list = filtered();
     galleryEl.innerHTML = "";
     if (exPickReq()) {
@@ -190,7 +219,7 @@
     list.slice(0, shown).forEach((f, idx) => {
       const cell = document.createElement("div"); cell.className = "cell loading"; cell.tabIndex = 0; cell.style.cursor = "pointer";
       if (selectMode && selected.has(f.fpath)) cell.classList.add("sel");
-      const img = document.createElement("img"); img.dataset.fp = f.fpath; img.alt = f.name;
+      const img = document.createElement("img"); img.dataset.fp = f.fpath; img.dataset.size = f.size; img.dataset.timecode = f.timecode; img.alt = f.name;
       cell.appendChild(img); io.observe(img);
       if (!seen.has(f.fpath)) { const b = document.createElement("span"); b.className = "new"; b.textContent = "NEW"; cell.appendChild(b); }
       const cap = document.createElement("div"); cap.className = "cap"; const nm = document.createElement("span"); nm.className = "name"; nm.textContent = f.name; nm.title = f.name + " · " + fmtBytes(f.size);
@@ -209,28 +238,42 @@
   }
 
   let lastFiles = [];
+  function renderConnection(ok, model, fw, maxPhotos, free) {
+    const dot = document.createElement("span"); dot.className = ok ? "ok" : "err"; dot.textContent = "●";
+    if (!ok) { statusEl.replaceChildren(dot, document.createTextNode(" not reachable — join the camera's WiFi")); return; }
+    const modelEl = document.createElement("b"); modelEl.textContent = model || "?";
+    const rollEl = document.createElement("b"); rollEl.textContent = maxPhotos ?? "?";
+    const freeEl = document.createElement("b"); freeEl.textContent = free ?? "?";
+    statusEl.replaceChildren(dot, document.createTextNode(" "), modelEl, document.createTextNode(" fw " + (fw || "?") + " · roll "), rollEl, document.createTextNode(" · "), freeEl, document.createTextNode(" frames free"));
+  }
   async function connect() {
+    if (disposed) return false;
     statusEl.textContent = "connecting…"; statusEl.className = "status-bar";
     try {
-      const [fw, model, st, free] = [await RP.firmware(), await RP.model(), await RP.status(), await RP.freeFrames()];
-      statusEl.innerHTML = "<span class='ok'>●</span> <b>" + (model || "?") + "</b> fw " + (fw || "?") +
-        " · roll <b>" + (st.maxPhotos ?? "?") + "</b> · <b>" + (free ?? "?") + "</b> frames free";
+      const fw = await RP.firmware(); if (disposed) return false;
+      const model = await RP.model(); if (disposed) return false;
+      const st = await RP.status(); if (disposed) return false;
+      const free = await RP.freeFrames(); if (disposed) return false;
+      renderConnection(true, model, fw, st.maxPhotos, free);
       return true;
     } catch (e) {
-      statusEl.innerHTML = "<span class='err'>●</span> not reachable — join the camera's WiFi";
+      if (disposed) return false;
+      renderConnection(false);
       msg("Camera not reachable: " + e.message + "\nJoin the camera's WiFi and press Reconnect.", "err");
       return false;
     }
   }
 
   async function sync() {
-    if (!(await connect())) return;
+    if (!(await connect()) || disposed) return false;
     msg("Reading photos…", "wait");
     try {
-      lastFiles = await RP.listFiles();
+      const files = await RP.listFiles(); if (disposed) return;
+      lastFiles = files;
       const r = renderGallery(lastFiles);
       msg(r.total + " photos · " + r.newCount + " new since last sync. Tap ⤓ to save a photo; “Mark all synced” to clear NEW badges.", "ok");
-    } catch (e) { msg("List failed: " + e.message, "err"); }
+      return true;
+    } catch (e) { if (!disposed) msg("List failed: " + e.message, "err"); return false; }
   }
 
   $("sync").onclick = sync;
@@ -291,11 +334,33 @@
     if (now - _frTs > 4000) { _frTs = now; msg("Finish roll deletes " + films.length + " ._FILM working copies (twins stay in Original_Film) and resets the frame budget to 0. Tap Finish roll again to confirm.", "err"); return; }
     _frTs = 0;
     const orig = new Set(allFiles.filter((f) => f.folder === "Original_Film").map((f) => f.name));
-    let del = 0, skip = 0;
-    for (let i = 0; i < films.length; i++) { const f = films[i]; if (!orig.has(f.name)) { skip++; continue; } msg("Finishing " + (i + 1) + "/" + films.length + "…", "wait"); try { const xml = await RP.deleteFile(f.fpath); if (RP.ackOk(xml)) del++; } catch (e) {} }
-    try { await RP.setMaxPhotos(0); } catch (e) {}
-    msg("Finished roll: deleted " + del + " ._FILM frame(s), reset budget to 0." + (skip ? " Skipped " + skip + " without an Original_Film twin — download those first." : ""), "ok");
-    await sync();
+    let del = 0, skip = 0, deleteFailures = 0;
+    for (let i = 0; i < films.length; i++) {
+      if (disposed) return;
+      const f = films[i]; if (!orig.has(f.name)) { skip++; continue; }
+      msg("Finishing " + (i + 1) + "/" + films.length + "…", "wait");
+      try { const xml = await RP.deleteFile(f.fpath); if (RP.ackOk(xml)) del++; else deleteFailures++; } catch (e) { deleteFailures++; }
+    }
+    if (disposed) return;
+    let budgetReset = false;
+    try { budgetReset = RP.ackOk(await RP.setMaxPhotos(0)); } catch (e) {}
+    const refreshed = await sync();
+    if (disposed) return;
+    const summary = "Finished roll: deleted " + del + " ._FILM frame(s). " +
+      (budgetReset ? "Frame budget reset to 0." : "Frame budget reset was not confirmed.") +
+      (deleteFailures ? " " + deleteFailures + " delete(s) failed — try again." : "") +
+      (skip ? " Skipped " + skip + " without an Original_Film twin — download those first." : "") +
+      (refreshed ? "" : " Gallery refresh failed — reload to see the current frames.");
+    msg(summary, (deleteFailures || !budgetReset || !refreshed) ? "err" : "ok");
+  };
+
+  window.__rpDispose = () => {
+    disposed = true; thumbEpoch++; q.length = 0; io.disconnect();
+    closeViewer();
+    if (vImg) vImg.onload = vImg.onerror = null;
+    if (viewerEl) viewerEl.remove();
+    viewerEl = vImg = vName = vCount = vSpin = null;
+    document.body.classList.remove("selecting");
   };
 
   // auto-connect + initial sync on load

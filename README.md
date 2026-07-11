@@ -97,7 +97,7 @@ installs can't self-update since the camera drops root uploads.
 - **Tests:** `npm test` (or `node --test`) runs a **hermetic** suite (Node's built-in runner, no deps,
   no camera/server/browser) in `test/` — it loads `camera.js`/`zip.js`/`develop.js` in a `vm` sandbox
   against an in-process mock camera and checks the command encoding, XML parsers, the confirmed
-  wire-sequences (clock-set `3005`→`3006`, delete, roll, sync), ZIP structure, and the LUT catalog.
+  wire-sequences (clock-set `3005`→`3006`, delete, roll), request serialization/spacing, ZIP structure, the LUT catalog + precedence, and current-film LUT eligibility (`filmLutName` + syncable-folder / seen-state filtering). There is **no** end-to-end "sync" workflow test (Sync isn't a camera wire-sequence — it lists + marks seen).
   `dev-server.py --mock` is the matching **stateful** mock for manual/browser QA.
 - **Deploy onto the camera** (USB vs HFS upload, the power-cycle re-index) is detailed in
   [The camera as a host](#the-camera-as-a-host-hfs) below.

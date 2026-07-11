@@ -20,7 +20,7 @@ test("customLuts persists named data URIs, returns them sorted, and removes only
   ]);
 });
 
-test("lutCatalog merges inline, custom, and folder LUTs with inline then custom precedence", async () => {
+test("lutCatalog gives custom LUTs precedence over inline LUTs and keeps folder LUTs lowest", async () => {
   const requests = [];
   const fetch = async (url) => {
     requests.push(url);
@@ -38,10 +38,10 @@ test("lutCatalog merges inline, custom, and folder LUTs with inline then custom 
     RP_LUTS: { InlineWins: "data:inline", BundledOnly: "data:bundled" },
   });
   window.RPDev.customLuts.add("CustomWins", "data:custom");
-  window.RPDev.customLuts.add("InlineWins", "data:custom-loser");
+  window.RPDev.customLuts.add("InlineWins", "data:custom-override");
   const catalog = await window.RPDev.lutCatalog();
   assert.deepEqual({ ...catalog }, {
-    InlineWins: "data:inline",
+    InlineWins: "data:custom-override",
     BundledOnly: "data:bundled",
     CustomWins: "data:custom",
     FolderOnly: "luts/folder.png",

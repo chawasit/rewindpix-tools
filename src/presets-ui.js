@@ -8,6 +8,11 @@
   ];
   const DEFAULTS = FIELDS.map((f) => f.def);
   function msg(t, k) { const m = $("msg"); m.textContent = t; m.className = "msg show " + (k || "wait"); }
+  function setConnectionStatus(kind, text) {
+    const status = $("status");
+    const dot = document.createElement("span"); dot.className = kind; dot.textContent = "●";
+    status.replaceChildren(dot, document.createTextNode(" " + text));
+  }
 
   // ---- example photo source: bundled samples + a gallery pick, shared across all slot cards ----
   const ss = { get: (k) => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} }, del: (k) => { try { sessionStorage.removeItem(k); } catch (e) {} } };
@@ -146,13 +151,13 @@
   $("loadcam").onclick = async () => {
     msg("Reading slots from camera…", "wait");
     try {
-      const fw = await RP.firmware(); $("status").innerHTML = "<span class='ok'>●</span> connected · fw " + fw;
+      const fw = await RP.firmware(); setConnectionStatus("ok", "connected · fw " + fw);
       const names = await RP.getSlotNames();
       for (let i = 0; i < 3; i++) film[i].set(names[i], await RP.getParams(RP.FILM.get[i]));
       for (let i = 0; i < 3; i++) incam[i].set(null, await RP.getParams(RP.INCAM.get[i]));
       try { const st = await RP.status(); if (st.maxPhotos != null) $("rollN").value = st.maxPhotos; } catch (e) {}
       msg("Loaded current film + in-camera slots from the camera.", "ok");
-    } catch (e) { $("status").innerHTML = "<span class='err'>●</span> not reachable"; msg("Load failed: " + e.message + " — join the camera's WiFi.", "err"); }
+    } catch (e) { setConnectionStatus("err", "not reachable"); msg("Load failed: " + e.message + " — join the camera's WiFi.", "err"); }
   };
   $("applyFilm").onclick = async () => {
     const slots = film.map((s) => s.get());
@@ -207,14 +212,17 @@
   $("saveFrom").innerHTML = SLOTS.map((s, i) => `<option value="${i}">from ${s[0]}</option>`).join("");
 
   function renderColl() {
-    const list = load(); const box = $("coll"); box.innerHTML = "";
-    if (!list.length) { box.innerHTML = "<div style='color:#7b848f;font-size:.85rem'>No saved presets yet.</div>"; return; }
+    const list = load(); const box = $("coll"); box.replaceChildren();
+    if (!list.length) { const empty = document.createElement("div"); empty.style.cssText = "color:#7b848f;font-size:.85rem"; empty.textContent = "No saved presets yet."; box.appendChild(empty); return; }
     list.forEach((p, idx) => {
       const it = document.createElement("div"); it.className = "coll-item";
-      const opts = SLOTS.map((s, i) => `<option value="${i}">→ ${s[0]}</option>`).join("");
-      it.innerHTML = `<div><b>${p.name}</b> <span class="p">${p.params.join(":")}</span></div>`;
+      const summary = document.createElement("div");
+      const name = document.createElement("b"); name.textContent = p.name;
+      const params = document.createElement("span"); params.className = "p"; params.textContent = p.params.join(":");
+      summary.append(name, document.createTextNode(" "), params); it.appendChild(summary);
       const right = document.createElement("div"); right.style.cssText = "display:flex;gap:6px";
-      const sel = document.createElement("select"); sel.innerHTML = opts; sel.style.cssText = "padding:5px;font-size:.8rem";
+      const sel = document.createElement("select"); sel.style.cssText = "padding:5px;font-size:.8rem";
+      SLOTS.forEach((slot, i) => { const option = document.createElement("option"); option.value = i; option.textContent = "→ " + slot[0]; sel.appendChild(option); });
       const apply = document.createElement("button"); apply.textContent = "Apply"; apply.style.cssText = "padding:5px 9px;font-size:.8rem";
       apply.onclick = () => { SLOTS[+sel.value][1](p.params); msg("Loaded “" + p.name + "” into " + SLOTS[+sel.value][0] + " (not yet pushed — hit Apply … to camera).", "ok"); };
       const del = document.createElement("button"); del.textContent = "✕"; del.style.cssText = "padding:5px 9px;font-size:.8rem";

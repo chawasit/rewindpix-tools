@@ -144,6 +144,7 @@ const JS  = {{ gallery: {js_str(JS["gallery"])}, develop: {js_str(JS["develop"])
 const VIEWS = ["gallery", "develop", "presets", "library"];
 const appEl = document.getElementById("app");
 function show(v) {{
+  if (window.__rpDispose) {{ try {{ window.__rpDispose(); }} catch (e) {{}} window.__rpDispose = null; }}
   appEl.innerHTML = TPL[v];
   document.getElementById("status").textContent = "";
   const s = document.createElement("script"); s.textContent = JS[v]; appEl.appendChild(s);
@@ -176,7 +177,10 @@ async function rpUpdate() {{
     try {{
       st.textContent = "Update 2/2: uploading " + (rpPending.blob.size / 1048576).toFixed(1) + " MB to the camera\\u2026";
       const form = new FormData(); form.append("fileupload1", rpPending.blob, rpPending.file); form.append("upbtn", "Upload files");
-      await fetch(dir, {{ method: "POST", body: form, cache: "no-store" }});
+      const res = await RP.enqueue(async () => {{ const r = await fetch(dir, {{ method: "POST", body: form, cache: "no-store" }}); await r.text(); return {{ ok: r.ok, status: r.status }}; }});
+      if (!res.ok) throw new Error("camera HTTP " + res.status);
+      const uploaded = (await RP.listFiles()).find((entry) => entry.name === rpPending.file && entry.size === rpPending.blob.size);
+      if (!uploaded) throw new Error("camera catalog did not confirm " + rpPending.file + " at " + rpPending.blob.size + " B");
       st.textContent = "Updated \\u2713 (" + rpPending.file + ") \\u2014 reloading\\u2026";
       rpPending = null;
       setTimeout(() => location.reload(), 1200);

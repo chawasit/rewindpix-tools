@@ -18,6 +18,9 @@
     chain = run.then(() => sleep(SPACING_MS), () => sleep(SPACING_MS));
     return run;
   }
+  /* Queue a complete camera transaction. The thunk MUST consume any response body before returning
+   * a plain result; returning a live Response releases the slot while its body may still be reading. */
+  RP.enqueue = (task) => enqueue(async () => await task());
 
   function encodeCam(v) {
     return String(v).split("").map((c) =>
@@ -38,7 +41,24 @@
     return res.text();
   });
 
-  RP.ackOk = (xml) => { const s = tag(xml, "Status"); return s === "0" || s === null; };
+  // A genuine write-ack is a well-formed <Function>…</Function> doc with exactly one <Status>0</Status>.
+  // Requiring the matching root + terminal tag (no trailing content) and a single Status rejects an empty/
+  // HTML/garbage or truncated body that merely embeds a <Status>0</Status> (spoof / MITM / partial read).
+  RP.ackOk = (xml) => {
+    if (typeof xml !== "string") return false;
+    const s = xml.trim().replace(/^<\?xml[^>]*\?>\s*/i, "");
+    if (!/^<Function[\s>][\s\S]*<\/Function>$/i.test(s)) return false;   // fast reject: non-Function root / trailing content
+    if (typeof DOMParser !== "undefined") {                             // real parse in the browser (rejects mismatched/malformed nesting)
+      try {
+        const doc = new DOMParser().parseFromString(s, "application/xml");
+        if (doc.getElementsByTagName("parsererror").length) return false;
+        const st = doc.getElementsByTagName("Status");
+        return !!doc.documentElement && doc.documentElement.nodeName === "Function" && st.length === 1 && st[0].textContent.trim() === "0";
+      } catch (e) { return false; }
+    }
+    const statuses = s.match(/<Status>\s*[^<]*\s*<\/Status>/gi) || [];  // Node/VM fallback (no DOMParser)
+    return statuses.length === 1 && /<Status>\s*0\s*<\/Status>/i.test(statuses[0]);
+  };
 
   // ---- reads ----
   RP.firmware = async () => tag(await RP.cmd(3012), "String");
@@ -63,12 +83,19 @@
     };
   });
 
-  RP.urlFor = (fpath) => base + "/" + fpath.replace(/^A:/i, "").replace(/\\/g, "/").replace(/^\/+/, "");
-  RP.downloadBlob = (fpath) => enqueue(async () => {
+  RP.urlFor = (fpath) => {
+    if (typeof fpath !== "string" || !/^A:\\/i.test(fpath)) throw new TypeError("invalid camera path");
+    const segments = fpath.slice(3).split(/[\\/]/);
+    if (!segments.length || segments.some((part) => !part || part === "." || part === "..")) throw new TypeError("invalid camera path");
+    return base + "/" + segments.map(encodeURIComponent).join("/");
+  };
+  RP.imageBlob = (fpath, isCurrent) => enqueue(async () => {
+    if (isCurrent && !isCurrent()) throw new Error("image request cancelled");
     const res = await fetch(RP.urlFor(fpath), { cache: "no-store" });
     if (!res.ok) throw new Error("download → HTTP " + res.status);
     return res.blob();
   });
+  RP.downloadBlob = RP.imageBlob;
 
   // ---- writes ----
   RP.setMaxPhotos = (n) => RP.cmd(8004, { par: n });

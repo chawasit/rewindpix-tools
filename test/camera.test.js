@@ -19,11 +19,24 @@ test("cmd emits camera-compatible par and encoded str URLs with an optional trim
   assert.equal(RP.base(), "http://192.168.1.254");
 });
 
-test("ackOk accepts status zero or an omitted status and rejects camera errors", () => {
+test("ackOk requires an explicit zero status and rejects missing or invalid responses", () => {
   const { RP } = setup();
   assert.equal(RP.ackOk("<Function><Status>0</Status></Function>"), true);
-  assert.equal(RP.ackOk("<Function><Cmd>1</Cmd></Function>"), true);
-  assert.equal(RP.ackOk("<Function><Status>7</Status></Function>"), false);
+  assert.equal(RP.ackOk('<?xml version="1.0"?><Function><Status>0</Status></Function>'), true, "XML declaration");
+  const rejected = [
+    ["missing Status", "<Function><Cmd>1</Cmd></Function>"],
+    ["negative camera error", "<Function><Status>-255</Status></Function>"],
+    ["positive camera error", "<Function><Status>1</Status></Function>"],
+    ["empty body", ""],
+    ["whitespace body", " \r\n\t"],
+    ["malformed XML", "<Function><Status>0</Function>"],
+    ["HTML error page", "<!doctype html><html><body>Camera error</body></html>"],
+    ["HTML embeds zero Status", "<html><Status>0</Status></html>"],
+    ["truncated Function root", "<Function><Status>0</Status>"],
+    ["content trails Function root", "<Function><Status>0</Status></Function><Other/>"],
+    ["duplicate Status elements", "<Function><Status>0</Status><Status>0</Status></Function>"],
+  ];
+  for (const [name, body] of rejected) assert.equal(RP.ackOk(body), false, name);
 });
 
 test("camera identity, capacity, and roll status are parsed into consumer values", async () => {

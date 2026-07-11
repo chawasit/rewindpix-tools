@@ -81,6 +81,7 @@
   let grainSeed = Math.random() * 100;
   const merged = () => Object.assign({}, params, post, { SEED: grainSeed });
   let engine, view = null, photo = null, lutImg = null;
+  let lutSelectionGeneration = 0, lastAppliedLutName = "", lastAppliedLutImg = null;
   function msg(t,k){ const m=$("msg"); m.textContent=t; m.className="msg show "+(k||"wait"); }
   const paint = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   function busy(on, t){ const b=$("busy"); if(b){ b.style.display = on ? "flex" : "none"; if(t) $("busytxt").textContent=t; } }
@@ -99,6 +100,12 @@
   function preview(){ if(!photo) return; ensureEngine(); const [pw,ph]=previewDims(); engine.render(merged(),pw,ph); draw2d(view,pw,ph); }
   function draw2d(t,w,h){ t.width=w; t.height=h; const cx=t.getContext("2d"); cx.drawImage(engine.canvas,0,0,w,h); if($("stampOn").checked){ const s=($("stampText").value||"").trim(); if(s) drawStamp(cx,w,h,s); } }
   function exportCanvas(w,h){ const o=document.createElement("canvas"); draw2d(o,w,h); return o; }
+  function encodeJpeg(canvas){
+    return new Promise((resolve,reject) => canvas.toBlob(blob => {
+      if(!blob || !blob.size) reject(new Error("JPEG encoding returned no data"));
+      else resolve(blob);
+    },"image/jpeg",0.92));
+  }
   function drawStamp(cx,w,h,text){ const fs=Math.max(12,Math.round(h*0.045)); cx.save(); cx.font="700 "+fs+"px DSEG7, ui-monospace, monospace"; cx.textAlign="right"; cx.textBaseline="alphabetic"; const pad=Math.round(fs*0.7); cx.fillStyle="#ff9a3c"; cx.fillText(text,w-pad,h-pad); cx.restore(); }
   function dateFromName(name, meta){
     const t = (meta||"").match(/(\d{4})[\/-](\d{2})[\/-](\d{2})\s+(\d{2}):(\d{2})/);   // <TIME> or file mtime -> full datetime
@@ -128,29 +135,60 @@
 
   // LUT dropdown: inlined subset (window.RP_LUTS, single-file build) merged with the bundled luts/ folder
   const lutSrc = {};                       // option name -> resolvable src (data URI or "luts/<file>")
-  function addLut(name, src){ if(lutSrc[name]!==undefined) return; lutSrc[name]=src; const o=document.createElement("option"); o.value=name; o.textContent=name; $("lut").appendChild(o); }
+  function addLut(name, src, replace){
+    if(lutSrc[name]!==undefined){ if(replace) lutSrc[name]=src; return; }
+    lutSrc[name]=src; const o=document.createElement("option"); o.value=name; o.textContent=name; $("lut").appendChild(o);
+  }
   Object.keys(window.RP_LUTS||{}).sort().forEach(n => addLut(n, window.RP_LUTS[n]));
-  RPDev.customLuts.list().forEach(l => addLut(l.name, l.data));    // your uploaded LUTs
+  RPDev.customLuts.list().forEach(l => addLut(l.name, l.data, true));    // custom LUTs override bundled names
   const lutReadyP = fetch("luts/luts.json").then(r=>r.json()).then(d=>{ d.luts.forEach(l => addLut(l.name, "luts/"+l.file)); }).catch(()=>{});
+  function discardPendingUpload(upload){
+    if(!upload || lutSrc[upload.name]!==upload.src) return;
+    if(upload.previousSrc!==undefined) lutSrc[upload.name]=upload.previousSrc;
+    else{
+      delete lutSrc[upload.name];
+      const option=Array.from($("lut").options).find(item => item.value===upload.name);
+      if(option) option.remove();
+    }
+  }
   // select a LUT by name (from RPDev.filmLutName) if it's in the dropdown — matches the gallery's auto-preview
   function selectLut(key){
     if(key && lutSrc[key]!==undefined && $("lut").value!==key){ $("lut").value=key; $("lut").dispatchEvent(new Event("change")); }
   }
-  $("lut").onchange = async () => {
-    const name=$("lut").value;
-    if(!name){ lutImg=null; if(engine){ engine.setLut(null); preview(); } return; }
+  $("lut").onchange = async event => {
+    const generation=++lutSelectionGeneration, name=$("lut").value, upload=event.detail?.upload || null;
+    if(!name){
+      lutImg=null; lastAppliedLutName=""; lastAppliedLutImg=null;
+      if(engine){ engine.setLut(null); preview(); }
+      busy(false); return;
+    }
     busy(true,"Applying LUT…"); await paint();
-    try{ lutImg = await RPDev.load(lutSrc[name]); ensureEngine(); engine.setLut(lutImg); preview(); }
-    catch(e){ msg("LUT load failed: "+e.message,"err"); }
-    finally{ busy(false); }
+    try{
+      const nextLutImg = await RPDev.load(upload ? upload.src : lutSrc[name]);
+      if(generation!==lutSelectionGeneration){ discardPendingUpload(upload); return; }
+      ensureEngine(); engine.setLut(nextLutImg); preview();
+      if(upload) RPDev.customLuts.add(name, upload.src);
+      lutImg=nextLutImg; lastAppliedLutName=name; lastAppliedLutImg=nextLutImg;
+      if(upload) msg("Added custom LUT: "+name,"ok");
+    }catch(e){
+      if(generation!==lutSelectionGeneration){ discardPendingUpload(upload); return; }
+      discardPendingUpload(upload);
+      $("lut").value=lastAppliedLutName;
+      let rollbackError=null;
+      try{ if(engine){ engine.setLut(lastAppliedLutImg); preview(); } }
+      catch(revertError){ rollbackError=revertError; }
+      lutImg=lastAppliedLutImg;
+      msg("LUT load/apply failed: "+e.message+(rollbackError ? "; rollback failed: "+rollbackError.message : ""),"err");
+    }finally{ if(generation===lutSelectionGeneration) busy(false); }
   };
   $("lutupbtn").onclick = () => $("lutfile").click();
   $("lutfile").onchange = e => {
     const f=e.target.files[0]; if(!f) return; const r=new FileReader();
     r.onload = () => {
       const name=(f.name.replace(/\.[^.]+$/,"").toUpperCase().replace(/[^A-Z0-9_. -]/g,"").slice(0,16))||"CUSTOM";
-      try{ RPDev.customLuts.add(name, r.result); }catch(err){ msg("Couldn't save LUT: "+err.message,"err"); return; }
-      addLut(name, r.result); $("lut").value=name; $("lut").dispatchEvent(new Event("change")); msg("Added custom LUT: "+name,"ok");
+      const previousSrc=lutSrc[name];
+      addLut(name, r.result, true); $("lut").value=name;
+      $("lut").dispatchEvent(new CustomEvent("change", { detail: { upload: { name, src:r.result, previousSrc } } }));
     };
     r.readAsDataURL(f); e.target.value="";
   };
@@ -171,7 +209,7 @@
     const name=base+"_"+look+".JPG";
     $("savecam").disabled=true; busy(true,"Rendering…"); await paint(); msg("Rendering + uploading to camera…","wait");
     try{
-      await stampFontReady; engine.render(merged(),w,h); const blob=await new Promise(r=>exportCanvas(w,h).toBlob(r,"image/jpeg",0.92)); preview();
+      await stampFontReady; engine.render(merged(),w,h); const blob=await encodeJpeg(exportCanvas(w,h)); preview();
       busy(true,"Uploading to camera…");
       const res=await RP.uploadDeveloped(name, blob);
       if(res.ok){ msg("Saved to camera → "+res.url+" ("+(res.size/1024).toFixed(0)+" KB on the SD). It re-serves over WiFi after a camera re-index / power-cycle.","ok"); }
@@ -186,12 +224,13 @@
     busy(true,"Rendering "+w+"×"+h+"…"); await paint();
     try{
       await stampFontReady; engine.render(merged(), w, h);
-      const blob = await new Promise(r => exportCanvas(w,h).toBlob(r,"image/jpeg",0.92));
+      const blob = await encodeJpeg(exportCanvas(w,h));
       const base = ($("photoName").textContent||"photo").replace(/\.[^.]+$/,"");
       const look = $("lut").selectedOptions[0]?.textContent || "orig";
       downloadBlob(blob, base+"_"+look+".jpg");
       preview(); msg("Exported "+w+"×"+h+" JPEG.","ok");
-    } finally { busy(false); }
+    } catch(e) { msg("Export failed: "+e.message,"err"); }
+    finally { busy(false); }
   };
 
   // develop a camera photo handed over from the gallery: ?photo= (multi-file) or window.RP_PICK (single-file SPA)
